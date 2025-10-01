@@ -1,0 +1,22 @@
+services:
+  api:
+    build:
+      secrets:
+        - github_token
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
+    container_name: printscript-api
+    environment:
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      GITHUB_TOKEN_FILE: /run/secrets/github_token
+
+secrets:
+  github_token:
+    environment: GITHUB_TOKEN
+
