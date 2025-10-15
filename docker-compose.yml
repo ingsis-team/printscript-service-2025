@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8002:8002"
+      - "8081:8080"
     container_name: printscript-api
     environment:
       DB_USER: ${POSTGRES_USER}
