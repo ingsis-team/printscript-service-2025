@@ -1,0 +1,8 @@
+{
+  "spaceBeforeColon": true,
+  "spaceAfterColon": true,
+  "spaceAroundEquals": true,
+  "lineBreak": 1,
+  "lineBreakPrintln": 1,
+  "conditionalIndentation": 4
+}
