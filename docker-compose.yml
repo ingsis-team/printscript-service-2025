@@ -1,22 +1,55 @@
+version: '3.9'
+
 services:
   api:
-    build:
-      secrets:
-        - github_token
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "8081:8080"
     container_name: printscript-api
+    build:
+      context: .
+      args:                       # <-- pass creds at build time for Gradle resolution
+        GITHUB_USERNAME: ${GITHUB_USERNAME}
+        GITHUB_TOKEN: ${GITHUB_TOKEN}
+    ports:
+      - "8082:8082"               # <-- your app runs on 8082 (server.port)
     environment:
+      DB_HOST: ${POSTGRES_HOST}
+      DB_PORT: ${POSTGRES_PORT}
+      DB_NAME: ${POSTGRES_DB}
       DB_USER: ${POSTGRES_USER}
       DB_PASSWORD: ${POSTGRES_PASSWORD}
-      DB_NAME: ${POSTGRES_DB}
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
-      GITHUB_TOKEN_FILE: /run/secrets/github_token
+      SPRING_PROFILES_ACTIVE: docker
+      GITHUB_USERNAME: ${GITHUB_USERNAME}   # also available at runtime if you need
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      # If you ever need to force servlet stack:
+      # SPRING_MAIN_WEB_APPLICATION_TYPE: servlet
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      # requires curl in the image (install it in your Dockerfile)
+      test: ["CMD", "curl", "-fsS", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
 
-secrets:
-  github_token:
-    environment: GITHUB_TOKEN
+  db:
+    container_name: printscript-db
+    image: postgres:17
+    restart: always
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
 
+volumes:
+  postgres_data:
