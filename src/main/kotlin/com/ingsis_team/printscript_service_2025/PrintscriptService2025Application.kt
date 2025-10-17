@@ -9,3 +9,5 @@ class PrintscriptService2025Application
 fun main(args: Array<String>) {
 	runApplication<PrintscriptService2025Application>(*args)
 }
+
+
