@@ -6,7 +6,7 @@ on:
 
 permissions:
   contents: read
-  packages: write
+  packages: write   # needed to push to GHCR
 
 env:
   IMAGE_NAME: ghcr.io/ingsis-team/printscript-service-2025
@@ -17,16 +17,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🛎️ Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 🧩 Generate short commit SHA
+      - name: Short SHA
         id: short-sha
         uses: benjlevesque/short-sha@v1.2
         with:
           length: 8
 
-      - name: 🏷️ Docker metadata
+      - name: Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -35,17 +35,17 @@ jobs:
             type=raw,value=latest
             type=raw,value=sha-${{ steps.short-sha.outputs.sha }}
 
-      - name: ⚙️ Setup Docker Buildx
+      - name: Setup Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: 🔐 Login to GitHub Container Registry
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ secrets.GITHUB_USERNAME }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ github.actor }}          # << fix: guaranteed non-empty
+          password: ${{ secrets.GITHUB_TOKEN }}  # builtin token, has packages:write
 
-      - name: 🐳 Build & Push Docker image
+      - name: Build & Push
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -53,6 +53,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            GITHUB_USERNAME=${{ secrets.GITHUB_USERNAME }}
+          build-args: |                           # pass creds into Docker build
+            GITHUB_USERNAME=${{ github.actor }}   # << fix: no secret needed
             GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
