@@ -8,3 +8,15 @@ spring.datasource.driver-class-name=org.postgresql.Driver
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.show-sql=true
 server.port=8080
+
+asset.url=${ASSET_URL:localhost:8080}
+
+redis.host=${REDIS_HOST:localhost}
+redis.port=${REDIS_PORT:6379}
+
+stream.key.lint=${STREAM_KEY_LINT:lint}
+stream.key.format=${STREAM_KEY_FORMAT:format}
+
+groups.product1=${GROUPS_PRODUCT1:product1}
+groups.product=${GROUPS_PRODUCT:product}
+
