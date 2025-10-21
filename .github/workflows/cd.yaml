@@ -13,19 +13,20 @@ env:
 
 jobs:
   publish_to_registry:
-    name: Push Docker image to GitHub Packages
+    name: Build & Push Docker image
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: 🛎️ Checkout repository
         uses: actions/checkout@v4
 
-      - name: Create Short SHA
+      - name: 🧩 Generate short commit SHA
         id: short-sha
         uses: benjlevesque/short-sha@v1.2
         with:
           length: 8
 
-      - name: Docker metadata
+      - name: 🏷️ Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -34,17 +35,17 @@ jobs:
             type=raw,value=latest
             type=raw,value=sha-${{ steps.short-sha.outputs.sha }}
 
-      - name: Configure Docker Buildx
+      - name: ⚙️ Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to GitHub Container Registry
+      - name: 🔐 Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ secrets.USERNAME }}
-          password: ${{ secrets.TOKEN }}
+          username: ${{ secrets.GITHUB_USERNAME }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: 🐳 Build & Push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -52,3 +53,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            GITHUB_USERNAME=${{ secrets.GITHUB_USERNAME }}
+            GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
