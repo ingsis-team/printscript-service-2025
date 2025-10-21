@@ -42,3 +42,5 @@ out/
 
 .env
 .gradle.properties.local
+graddle.properties
+application.properties

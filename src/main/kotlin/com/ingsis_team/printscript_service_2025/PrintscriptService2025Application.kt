@@ -4,7 +4,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 import org.springframework.stereotype.Service
 
-@Service
+@SpringBootApplication
 class PrintscriptService2025Application
 
 fun main(args: Array<String>) {
