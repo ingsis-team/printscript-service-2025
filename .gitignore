@@ -1,11 +1,13 @@
+# === General build artifacts ===
 HELP.md
 .gradle
 build/
+out/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
 
-### STS ###
+# === Spring Tool Suite (STS) ===
 .apt_generated
 .classpath
 .factorypath
@@ -18,7 +20,7 @@ bin/
 !**/src/test/**/bin/
 gradle.properties
 
-### IntelliJ IDEA ###
+# === IntelliJ IDEA ===
 .idea
 *.iws
 *.iml
@@ -27,20 +29,24 @@ out/
 !**/src/main/**/out/
 !**/src/test/**/out/
 
-### NetBeans ###
+# === NetBeans ===
 /nbproject/private/
 /nbbuild/
 /dist/
 /nbdist/
 /.nb-gradle/
 
-### VS Code ###
+# === VS Code ===
 .vscode/
 
-### Kotlin ###
+# === Kotlin ===
 .kotlin
 
+# === Environment & local props ===
 .env
-.gradle.properties.local
-graddle.properties
 application.properties
+
+# === Git and metadata ===
+.git
+**/.idea
+**/.DS_Store
