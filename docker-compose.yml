@@ -12,28 +12,31 @@ services:
     ports:
       - "${API_PORT}:8080"
     environment:
-      DB_HOST: ${POSTGRES_HOST}
-      DB_PORT: ${POSTGRES_PORT}
-      DB_NAME: ${POSTGRES_DB}
-      DB_USER: ${POSTGRES_USER}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
       SPRING_PROFILES_ACTIVE: docker
+
+      ASSET_URL: ${ASSET_URL}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      STREAM_KEY_LINT: lint
+      STREAM_KEY_FORMAT: format
+      GROUPS_PRODUCT1: product1
+      GROUPS_PRODUCT: product
+
       GITHUB_USERNAME: ${GITHUB_USERNAME}
       GITHUB_TOKEN: ${GITHUB_TOKEN}
-      ASSET_URL: ${ASSET_URL:-localhost:8080}
-      REDIS_HOST: ${REDIS_HOST:-redis}
-      REDIS_PORT: ${REDIS_PORT:-6379}
-      STREAM_KEY_LINT: ${STREAM_KEY_LINT:-lint}
-      STREAM_KEY_FORMAT: ${STREAM_KEY_FORMAT:-format}
-      GROUPS_PRODUCT1: ${GROUPS_PRODUCT1:-product1}
-      GROUPS_PRODUCT: ${GROUPS_PRODUCT:-product}
+
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8082/actuator/health"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
       interval: 30s
       timeout: 5s
       retries: 5
@@ -46,13 +49,13 @@ services:
     ports:
       - "${DB_HOST_PORT}:5432"
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h localhost"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME} -h localhost"]
       interval: 10s
       timeout: 5s
       retries: 10
