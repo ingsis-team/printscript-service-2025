@@ -20,7 +20,7 @@ COPY --chown=gradle:gradle src src
 RUN ./gradlew --no-daemon -x test bootJar
 
 # ---- run ----
-FROM openjdk:21-slim
+FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=builder /home/gradle/project/build/libs/*.jar app.jar
 EXPOSE 8080
