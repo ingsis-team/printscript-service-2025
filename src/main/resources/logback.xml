@@ -7,7 +7,7 @@
     </appender>
 
     <!-- Logger específico de tu app -->
-    <logger name="com.ingsisteam.snippetservice2025" level="DEBUG" additivity="false">
+    <logger name="com.ingsisteam.printscript_service_2025" level="DEBUG" additivity="false">
         <appender-ref ref="STDOUT"/>
     </logger>
 
