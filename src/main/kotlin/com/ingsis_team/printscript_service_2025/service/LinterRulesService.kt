@@ -57,7 +57,6 @@ class LinterRulesService(
     private fun findOrCreateByUser(userId: String): LinterRules {
         val rules = linterRulesRepository.findByUserId(userId).orElse(null)
         if (rules == null) {
-            println("User not found")
             return createUserById(userId)
         }
         return rules

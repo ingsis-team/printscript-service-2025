@@ -12,6 +12,7 @@ import com.ingsis_team.printscript_service_2025.redis.dto.ChangeRulesDTO
 import com.ingsis_team.printscript_service_2025.redis.dto.Snippet
 import com.ingsis_team.printscript_service_2025.redis.producer.SnippetFormatterProducer
 import com.ingsis_team.printscript_service_2025.redis.producer.SnippetLintProducer
+import com.ingsis_team.printscript_service_2025.redis.producer.SnippetTestProducer
 import com.ingsis_team.printscript_service_2025.service.FormatterRulesService
 import com.ingsis_team.printscript_service_2025.service.LinterRulesService
 
@@ -22,6 +23,7 @@ class RedisController
     constructor(
         private val formatProducer: SnippetFormatterProducer,
         private val lintProducer: SnippetLintProducer,
+        private val testProducer: SnippetTestProducer,
         private val formatterService: FormatterRulesService,
         private val linterRulesService: LinterRulesService,
     ) {
@@ -101,5 +103,32 @@ class RedisController
                 lintProducer.publishEvent(snippet)
             }
             logger.info("Rules published2")
+        }
+
+        @PutMapping("/format/snippet")
+        suspend fun formatSnippet(
+            @RequestBody snippet: Snippet,
+        ) {
+            logger.info("Formatting snippet: ${snippet.id} for user: ${snippet.userId}")
+            formatProducer.publishEvent(snippet)
+            logger.info("Format event published for snippet: ${snippet.id}")
+        }
+
+        @PutMapping("/lint/snippet")
+        suspend fun lintSnippet(
+            @RequestBody snippet: Snippet,
+        ) {
+            logger.info("Linting snippet: ${snippet.id} for user: ${snippet.userId}")
+            lintProducer.publishEvent(snippet)
+            logger.info("Lint event published for snippet: ${snippet.id}")
+        }
+
+        @PutMapping("/test/snippet")
+        suspend fun testSnippet(
+            @RequestBody snippet: Snippet,
+        ) {
+            logger.info("Testing snippet: ${snippet.id} for user: ${snippet.userId}")
+            testProducer.publishEvent(snippet)
+            logger.info("Test event published for snippet: ${snippet.id}")
         }
     }

@@ -33,14 +33,11 @@ abstract class RedisStreamConsumer<Value>(
             try {
                 val consumerGroupExists = consumerGroupExists(streamKey, groupId).awaitSingle()
                 if (!consumerGroupExists) {
-                    println("Consumer group $groupId for stream $streamKey doesn't exist. Creating...")
                     createConsumerGroup(streamKey, groupId).awaitSingle()
                 } else {
-                    println("Consumer group $groupId for stream $streamKey exists!")
+                    // Consumer group already exists
                 }
             } catch (e: Exception) {
-                println("Exception: $e")
-                println("Stream $streamKey doesn't exist. Creating stream $streamKey and group $groupId")
                 redis.opsForStream<Any, Any>().createGroup(streamKey, groupId).awaitSingle()
             }
         }

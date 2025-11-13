@@ -17,10 +17,10 @@ class SCAOutputTest {
                 description = "This is a broken rule",
             )
 
-        // Llamando al método getBrokenRules y verificando el contenido
+        // Call the getBrokenRules method and verify the content
         val brokenRules = scaOutput.getBrokenRules()
 
-        // Verificando que la lista devuelta contiene exactamente "Rule 1"
+        // Verify that the returned list contains exactly "Rule 1"
         assertEquals(1, brokenRules.size, "List should contain exactly one broken rule")
         assertTrue(brokenRules.contains("Rule 1"), "Broken rule should be 'Rule 1'")
     }
