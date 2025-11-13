@@ -267,8 +267,13 @@ class PrintScriptService
                     rulesFile.delete()
                 }
 
-                // Actualizar el contenido formateado en el bucket
-                updateOnBucket(snippetId, formattedCode)
+                // Actualizar el contenido formateado en el bucket (opcional - no falla si el servicio no está disponible)
+                try {
+                    updateOnBucket(snippetId, formattedCode)
+                } catch (e: Exception) {
+                    // Log el error pero no fallar el formateo
+                    logger.warn("No se pudo actualizar el bucket, pero el formateo fue exitoso: ${e.message}")
+                }
 
                 // Retornar el resultado formateado
                 return Output(formattedCode)
@@ -295,7 +300,8 @@ class PrintScriptService
                         .block()
 
                 // Validar si la eliminación fue exitosa
-                if (deleteResponseStatus != HttpStatus.NO_CONTENT) {
+                // Permitir 404 (NOT_FOUND) ya que el snippet puede no existir aún
+                if (deleteResponseStatus != HttpStatus.NO_CONTENT && deleteResponseStatus != HttpStatus.NOT_FOUND) {
                     throw RuntimeException("Error al eliminar el snippet: Código de respuesta $deleteResponseStatus")
                 }
 
@@ -309,7 +315,9 @@ class PrintScriptService
                         .block()
 
                 // Validar si la subida fue exitosa
-                if (postResponseStatus != HttpStatus.CREATED) {
+                // Permitir 404 (NOT_FOUND) si el servicio de assets no está disponible
+                // El formateo puede funcionar sin actualizar el bucket
+                if (postResponseStatus != HttpStatus.CREATED && postResponseStatus != HttpStatus.NOT_FOUND) {
                     throw RuntimeException("Error al subir el snippet: Código de respuesta $postResponseStatus")
                 }
 
