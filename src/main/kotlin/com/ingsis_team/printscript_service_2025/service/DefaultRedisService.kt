@@ -66,17 +66,17 @@ class DefaultRedisService
             logger.info("Estoy testeando un snippet")
 
             try {
-                // Ejecutar el snippet para verificar que no tenga errores de sintaxis
+                // Execute the snippet to verify it has no syntax errors
                 val inputStream = ByteArrayInputStream(snippet.content.toByteArray())
                 snippetService.runScript(inputStream, "1.1")
                 
-                // Si la ejecución fue exitosa, retornar success
+                // If execution was successful, return success
                 val testResult = "success - Snippet executed without errors"
                 val outputSnippet = Snippet(snippet.id, testResult, snippet.userId, snippet.correlationID)
                 logger.info("Test passed for snippet ${snippet.id}")
                 return outputSnippet
             } catch (e: Exception) {
-                // Si hay un error, retornar failure
+                // If there's an error, return failure
                 val testResult = "failure - Error: ${e.message}"
                 logger.error("Test failed for snippet ${snippet.id}: ${e.message}")
                 val outputSnippet = Snippet(snippet.id, testResult, snippet.userId, snippet.correlationID)

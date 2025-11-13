@@ -253,29 +253,29 @@ class PrintScriptService
                     formattingOperations += ConditionalFormatter()
                 }
 
-                // Crear instancia de FormatterPS
+                // Create FormatterPS instance
                 val formatter = FormatterPS(rulesReader, defaultPath, formattingOperations, lexer, parser)
 
-                // Leer el código desde el InputStream
+                // Read the code from the InputStream
                 val code = input.bufferedReader().use { it.readText() }
 
-                // Ejecutar el formateador y obtener el código formateado
+                // Execute the formatter and get the formatted code
                 val formattedCode = formatter.format(code)
 
-                // Limpiar el archivo temporal
+                // Clean up the temporary file
                 if (rulesFile.exists()) {
                     rulesFile.delete()
                 }
 
-                // Actualizar el contenido formateado en el bucket (opcional - no falla si el servicio no está disponible)
+                // Update the formatted content in the bucket (optional - does not fail if service is not available)
                 try {
                     updateOnBucket(snippetId, formattedCode)
                 } catch (e: Exception) {
-                    // Log el error pero no fallar el formateo
-                    logger.warn("No se pudo actualizar el bucket, pero el formateo fue exitoso: ${e.message}")
+                    // Log the error but don't fail the formatting
+                    logger.warn("Could not update bucket, but formatting was successful: ${e.message}")
                 }
 
-                // Retornar el resultado formateado
+                // Return the formatted result
                 return Output(formattedCode)
             } catch (e: Exception) {
                 throw RuntimeException("Error al formatear el código: ${e.message}", e)
@@ -291,7 +291,7 @@ class PrintScriptService
             content: String,
         ) {
             try {
-                // Eliminar el contenido existente en el bucket
+                // Delete the existing content in the bucket
                 val deleteResponseStatus =
                     assetServiceApi
                         .delete()
@@ -299,13 +299,13 @@ class PrintScriptService
                         .exchangeToMono { clientResponse -> Mono.just(clientResponse.statusCode()) } // Wrap status code in Mono
                         .block()
 
-                // Validar si la eliminación fue exitosa
-                // Permitir 404 (NOT_FOUND) ya que el snippet puede no existir aún
+                // Validate if deletion was successful
+                // Allow 404 (NOT_FOUND) since the snippet may not exist yet
                 if (deleteResponseStatus != HttpStatus.NO_CONTENT && deleteResponseStatus != HttpStatus.NOT_FOUND) {
                     throw RuntimeException("Error al eliminar el snippet: Código de respuesta $deleteResponseStatus")
                 }
 
-                // Subir el nuevo contenido al bucket
+                // Upload the new content to the bucket
                 val postResponseStatus =
                     assetServiceApi
                         .post()
@@ -314,9 +314,9 @@ class PrintScriptService
                         .exchangeToMono { clientResponse -> Mono.just(clientResponse.statusCode()) } // Wrap status code in Mono
                         .block()
 
-                // Validar si la subida fue exitosa
-                // Permitir 404 (NOT_FOUND) si el servicio de assets no está disponible
-                // El formateo puede funcionar sin actualizar el bucket
+                // Validate if upload was successful
+                // Allow 404 (NOT_FOUND) if the asset service is not available
+                // Formatting can work without updating the bucket
                 if (postResponseStatus != HttpStatus.CREATED && postResponseStatus != HttpStatus.NOT_FOUND) {
                     throw RuntimeException("Error al subir el snippet: Código de respuesta $postResponseStatus")
                 }

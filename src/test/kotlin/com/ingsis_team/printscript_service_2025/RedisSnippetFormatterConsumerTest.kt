@@ -43,14 +43,14 @@ class RedisSnippetFormatterConsumerTest {
     @Test
     @Suppress("UNCHECKED_CAST")
     fun `test options builds correct configuration`() {
-        // Mock de las dependencias necesarias
+        // Mock the necessary dependencies
         val redisMock = Mockito.mock(ReactiveRedisTemplate::class.java) as ReactiveRedisTemplate<String, String>
         val serviceMock = Mockito.mock(printscript.service.DefaultRedisService::class.java)
 
-        // Instanciar la clase a probar
+        // Instantiate the class to test
         val consumer = SnippetFormatterConsumer(redisMock, "test-stream", "test-group", serviceMock)
 
-        // Invocar options y verificar que retorna una configuración válida
+        // Invoke options and verify it returns a valid configuration
         val options = consumer.options()
         assert(options.pollTimeout == Duration.ofMillis(100))
     }
