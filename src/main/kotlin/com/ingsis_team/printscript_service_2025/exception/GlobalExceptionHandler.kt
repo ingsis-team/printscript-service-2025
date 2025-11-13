@@ -322,6 +322,13 @@ class GlobalExceptionHandler {
         ex: Exception,
         request: WebRequest
     ): ResponseEntity<ErrorResponse> {
+        val path = extractPath(request)
+
+        // Ignorar rutas de actuator - dejar que Spring las maneje
+        if (path.contains("/actuator/")) {
+            throw ex
+        }
+
         logger.error("Unexpected error: ${ex.message}", ex)
         
         val errorResponse = ErrorResponse(
@@ -329,7 +336,7 @@ class GlobalExceptionHandler {
             status = HttpStatus.INTERNAL_SERVER_ERROR.value(),
             error = "Internal Server Error",
             message = "An unexpected error occurred. Please try again later.",
-            path = extractPath(request),
+            path = path,
             correlationId = extractCorrelationId(request)
         )
         
@@ -350,4 +357,3 @@ class GlobalExceptionHandler {
         return request.getHeader("Correlation-id")
     }
 }
-
