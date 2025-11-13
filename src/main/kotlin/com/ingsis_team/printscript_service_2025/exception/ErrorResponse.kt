@@ -28,7 +28,7 @@ data class ValidationErrorResponse(
 )
 
 /**
- * Detalle de error de validación
+ * Validation error detail
  */
 data class ValidationError(
     val field: String,
