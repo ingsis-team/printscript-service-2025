@@ -23,8 +23,10 @@ services:
       REDIS_PORT: ${REDIS_PORT}
       STREAM_KEY_LINT: lint
       STREAM_KEY_FORMAT: format
+      STREAM_KEY_TEST: test
       GROUPS_PRODUCT1: product1
       GROUPS_PRODUCT: product
+      GROUPS_PRODUCT2: product2
 
       GITHUB_USERNAME: ${GITHUB_USERNAME}
       GITHUB_TOKEN: ${GITHUB_TOKEN}
