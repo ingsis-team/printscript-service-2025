@@ -29,6 +29,7 @@ import com.ingsis_team.printscript_service_2025.model.SCAOutput
 import com.ingsis_team.printscript_service_2025.model.dto.FormatterFileDTO
 import com.ingsis_team.printscript_service_2025.model.dto.LinterFileDTO
 import com.ingsis_team.printscript_service_2025.model.dto.ValidationResult
+import com.ingsis_team.printscript_service_2025.exception.*
 import reactor.core.publisher.Mono
 import rules.RulesReader
 import token.Token
@@ -65,10 +66,20 @@ class PrintScriptService
             input: InputStream,
             version: String,
         ): Output {
-            val lexer = Lexer(tokenMapper)
-            val tokens = lexer.execute(input.bufferedReader().readText())
-            val script = parser.execute(tokens)
-            return Output(script.toString())
+            try {
+                logger.info("Running script with version: $version")
+                val lexer = Lexer(tokenMapper)
+                val tokens = lexer.execute(input.bufferedReader().readText())
+                val script = parser.execute(tokens)
+                logger.debug("Script execution completed")
+                return Output(script.toString())
+            } catch (e: IllegalArgumentException) {
+                logger.error("Invalid version or syntax in script execution: ${e.message}", e)
+                throw ValidationException("Invalid version or syntax: ${e.message}", e)
+            } catch (e: Exception) {
+                logger.error("Error executing script: ${e.message}", e)
+                throw ScriptExecutionException("Failed to execute script: ${e.message}", e)
+            }
         }
 
         override fun test(
@@ -77,50 +88,71 @@ class PrintScriptService
             snippet: String,
             envVars: String,
         ): String {
-            val inputStream = ByteArrayInputStream(snippet.toByteArray())
-            val executionOutput = runScript(inputStream, "1.1")
-            val executionResult = executionOutput.string.split("\n")
-            for (i in output.indices) {
-                if (executionResult[i] != output[i]) {
-                    return "failure"
+            try {
+                logger.info("Starting test execution")
+                logger.debug("Expected outputs: ${output.size}")
+                val inputStream = ByteArrayInputStream(snippet.toByteArray())
+                val executionOutput = runScript(inputStream, "1.1")
+                val executionResult = executionOutput.string.split("\n")
+                for (i in output.indices) {
+                    if (executionResult[i] != output[i]) {
+                        logger.warn("Test failed at line $i. Expected: ${output[i]}, Got: ${executionResult[i]}")
+                        return "failure"
+                    }
                 }
+                logger.info("Test execution successful")
+                return "success"
+            } catch (e: ScriptExecutionException) {
+                throw e
+            } catch (e: Exception) {
+                logger.error("Error during test execution: ${e.message}", e)
+                throw ScriptExecutionException("Test execution failed: ${e.message}", e)
             }
-            return "success"
         }
 
         override fun validate(
             input: String,
             version: String,
         ): ValidationResult {
-            val lexer = Lexer(tokenMapper)
-            val tokens = lexer.execute(input)
-            val script = parser.execute(tokens)
-            val linterVersion =
-                LinterVersion.fromString(version)
-                    ?: throw IllegalArgumentException("Versión de linter no soportada: $version")
-            val linter = Linter(linterVersion)
+            try {
+                logger.info("Validating code with version: $version")
+                val lexer = Lexer(tokenMapper)
+                val tokens = lexer.execute(input)
+                val script = parser.execute(tokens)
+                val linterVersion =
+                    LinterVersion.fromString(version)
+                        ?: throw ValidationException("Unsupported linter version: $version")
+                val linter = Linter(linterVersion)
 
-            val results = linter.check(script)
+                val results = linter.check(script)
 
-            val scaOutputs: MutableList<SCAOutput> =
-                results.getBrokenRules().map { brokenRule ->
-                    SCAOutput(
-                        lineNumber = brokenRule.errorPosition.row,
-                        ruleBroken = brokenRule.ruleDescription,
-                        description = "Broken rule at line ${brokenRule.errorPosition.row}, column ${brokenRule.errorPosition.column}",
+                val scaOutputs: MutableList<SCAOutput> =
+                    results.getBrokenRules().map { brokenRule ->
+                        SCAOutput(
+                            lineNumber = brokenRule.errorPosition.row,
+                            ruleBroken = brokenRule.ruleDescription,
+                            description = "Broken rule at line ${brokenRule.errorPosition.row}, column ${brokenRule.errorPosition.column}",
+                        )
+                    }.toMutableList()
+
+                if (scaOutputs.isEmpty()) {
+                    logger.info("Validation successful - no broken rules found")
+                    return ValidationResult(isValid = true, rule = "", line = 0, column = 0)
+                } else {
+                    val firstBrokenRule = scaOutputs.first()
+                    logger.warn("Validation failed - found ${scaOutputs.size} broken rules. First: ${firstBrokenRule.ruleBroken} at line ${firstBrokenRule.lineNumber}")
+                    return ValidationResult(
+                        isValid = false,
+                        rule = firstBrokenRule.ruleBroken,
+                        line = firstBrokenRule.lineNumber,
+                        column = firstBrokenRule.description.split(", column ")[1].toInt(),
                     )
-                }.toMutableList()
-
-            return if (scaOutputs.isEmpty()) {
-                ValidationResult(isValid = true, rule = "", line = 0, column = 0)
-            } else {
-                val firstBrokenRule = scaOutputs.first()
-                ValidationResult(
-                    isValid = false,
-                    rule = firstBrokenRule.ruleBroken,
-                    line = firstBrokenRule.lineNumber,
-                    column = firstBrokenRule.description.split(", column ")[1].toInt(),
-                )
+                }
+            } catch (e: ValidationException) {
+                throw e
+            } catch (e: Exception) {
+                logger.error("Error during validation: ${e.message}", e)
+                throw ParsingException("Failed to validate code: ${e.message}", e)
             }
         }
 
@@ -130,11 +162,13 @@ class PrintScriptService
             userId: String,
             correlationId: UUID,
         ): MutableList<SCAOutput> {
+            logger.info("Starting linting for userId: $userId, correlationId: $correlationId")
             val sanitizedUserId = sanitizeUserId(userId)
             val defaultPath = "./$sanitizedUserId-linterRules.json"
 
             try {
                 val lintRules = linterRulesService.getLinterRulesByUserId(userId, correlationId)
+                logger.debug("Loaded linter rules for user: $userId")
                 val linterDto =
                     LinterFileDTO(
                         lintRules.identifierFormat,
@@ -157,7 +191,7 @@ class PrintScriptService
                 // Instanciar el linter y aplicar las reglas
                 val linterVersion =
                     LinterVersion.fromString(version)
-                        ?: throw IllegalArgumentException("Versión de linter no soportada: $version")
+                        ?: throw ValidationException("Unsupported linter version: $version")
                 val linter = Linter(linterVersion)
                 val results = linter.check(trees)
 
@@ -171,12 +205,21 @@ class PrintScriptService
                         )
                     }.toMutableList()
 
+                logger.info("Linting completed. Found ${scaOutputs.size} issues")
                 return scaOutputs
+            } catch (e: ValidationException) {
+                throw e
+            } catch (e: DatabaseException) {
+                throw e
+            } catch (e: Exception) {
+                logger.error("Error during linting: ${e.message}", e)
+                throw LintingException("Failed to lint code: ${e.message}", e)
             } finally {
                 // Eliminar el archivo de reglas
                 val rulesFile = File(defaultPath)
                 if (rulesFile.exists()) {
                     rulesFile.delete()
+                    logger.debug("Temporary linter rules file deleted: $defaultPath")
                 }
             }
         }
@@ -188,12 +231,14 @@ class PrintScriptService
             userId: String,
             correlationId: UUID,
         ): Output {
+            logger.info("Starting formatting for snippetId: $snippetId, userId: $userId, correlationId: $correlationId")
             val sanitizedUserId = sanitizeUserId(userId)
 
             val defaultPath = "./$sanitizedUserId-formatterRules.json"
             try {
                 // Obtener reglas de formato del servicio
                 val formatterRules = formatterService.getFormatterRulesByUserId(userId, correlationId)
+                logger.debug("Loaded formatter rules for user: $userId")
                 val formatterDto =
                     FormatterFileDTO(
                         formatterRules.spaceBeforeColon,
@@ -228,14 +273,14 @@ class PrintScriptService
                     when (Declversion) {
                         "1.0" -> listOf("let")
                         "1.1" -> listOf("let", "const")
-                        else -> throw IllegalArgumentException("Versión no soportada: $Declversion")
+                        else -> throw ValidationException("Unsupported version: $Declversion")
                     }
                 }
                 val getAllowedDataTypes = { Allowedversion: String ->
                     when (Allowedversion) {
                         "1.0" -> listOf("number", "string")
                         "1.1" -> listOf("number", "string", "boolean")
-                        else -> throw IllegalArgumentException("Versión no soportada: $Allowedversion")
+                        else -> throw ValidationException("Unsupported version: $Allowedversion")
                     }
                 }
 
@@ -290,6 +335,7 @@ class PrintScriptService
             key: String,
             content: String,
         ) {
+            logger.info("Updating bucket for snippetId: $key")
             try {
                 // Delete the existing content in the bucket
                 val deleteResponseStatus =
@@ -302,8 +348,10 @@ class PrintScriptService
                 // Validate if deletion was successful
                 // Allow 404 (NOT_FOUND) since the snippet may not exist yet
                 if (deleteResponseStatus != HttpStatus.NO_CONTENT && deleteResponseStatus != HttpStatus.NOT_FOUND) {
+                    logger.error("Failed to delete snippet from bucket. Status: $deleteResponseStatus")
                     throw RuntimeException("Error al eliminar el snippet: Código de respuesta $deleteResponseStatus")
                 }
+                logger.debug("Snippet deleted from bucket (or did not exist). Status: $deleteResponseStatus")
 
                 // Upload the new content to the bucket
                 val postResponseStatus =
@@ -318,10 +366,13 @@ class PrintScriptService
                 // Allow 404 (NOT_FOUND) if the asset service is not available
                 // Formatting can work without updating the bucket
                 if (postResponseStatus != HttpStatus.CREATED && postResponseStatus != HttpStatus.NOT_FOUND) {
+                    logger.error("Failed to upload snippet to bucket. Status: $postResponseStatus")
                     throw RuntimeException("Error al subir el snippet: Código de respuesta $postResponseStatus")
                 }
+                logger.info("Snippet successfully uploaded to bucket. Status: $postResponseStatus")
             } catch (e: Exception) {
-                throw RuntimeException("Error en la operación de actualización del bucket: ${e.message}", e)
+                logger.error("Error updating bucket for snippetId $key: ${e.message}", e)
+                throw ExternalServiceException("Error communicating with asset service: ${e.message}", e)
             }
         }
     }

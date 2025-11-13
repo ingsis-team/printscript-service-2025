@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service
 import com.ingsis_team.printscript_service_2025.model.dto.FormatterRulesFileDTO
 import com.ingsis_team.printscript_service_2025.model.repository.FormatterRulesRepository
 import com.ingsis_team.printscript_service_2025.model.rules.FormatterRules
+import com.ingsis_team.printscript_service_2025.exception.DatabaseException
 import java.util.*
 
 @Service
@@ -18,8 +19,10 @@ class FormatterRulesService(
         userId: String,
         correlationId: UUID,
     ): FormatterRules {
-        logger.info("userId: $userId")
-        return findOrCreateByUser(userId)
+        logger.info("Getting formatter rules for userId: $userId, correlationId: $correlationId")
+        val rules = findOrCreateByUser(userId)
+        logger.debug("Formatter rules retrieved for userId: $userId")
+        return rules
     }
 
     fun updateFormatterRules(
@@ -27,9 +30,9 @@ class FormatterRulesService(
         userId: String,
     ): FormatterRulesFileDTO {
         try {
-            logger.info("userId: $userId")
+            logger.info("Updating formatter rules for userId: $userId")
             val rules = findOrCreateByUser(userId)
-            logger.info("old rules: $rules")
+            logger.debug("Current formatter rules: spaceBeforeColon=${rules.spaceBeforeColon}, spaceAfterColon=${rules.spaceAfterColon}")
             rules.spaceBeforeColon = formatterRules.spaceBeforeColon
             rules.spaceAfterColon = formatterRules.spaceAfterColon
             rules.spaceAroundEquals = formatterRules.spaceAroundEquals
@@ -38,7 +41,7 @@ class FormatterRulesService(
             rules.conditionalIndentation = formatterRules.conditionalIndentation
 
             formatterRulesRepository.save(rules)
-            logger.info("$rules")
+            logger.info("Formatter rules updated successfully for userId: $userId")
             return FormatterRulesFileDTO(
                 userId,
                 rules.spaceBeforeColon,
@@ -49,31 +52,43 @@ class FormatterRulesService(
                 rules.conditionalIndentation,
             )
         } catch (e: Exception) {
-            throw RuntimeException("Could not save rules")
+            logger.error("Failed to save formatter rules for userId: $userId", e)
+            throw DatabaseException("Could not save formatter rules for user: $userId", e)
         }
     }
 
     private fun findOrCreateByUser(userId: String): FormatterRules {
-        val rules = formatterRulesRepository.findByUserId(userId).orElse(null)
-        logger.info("rules: $rules")
-        if (rules == null) {
-            logger.info("User not found")
-            return createUserById(userId)
+        try {
+            val rules = formatterRulesRepository.findByUserId(userId).orElse(null)
+            if (rules == null) {
+                logger.info("Formatter rules not found for userId: $userId, creating default rules")
+                return createUserById(userId)
+            }
+            logger.debug("Found existing formatter rules for userId: $userId")
+            return rules
+        } catch (e: Exception) {
+            logger.error("Error finding formatter rules for userId: $userId", e)
+            throw DatabaseException("Error accessing formatter rules for user: $userId", e)
         }
-        return rules
     }
 
     private fun createUserById(userId: String): FormatterRules {
-        val format =
-            FormatterRules(
-                userId = userId,
-                spaceBeforeColon = false,
-                spaceAfterColon = false,
-                spaceAroundEquals = false,
-                lineBreak = 0,
-                lineBreakPrintln = 0,
-                conditionalIndentation = 0,
-            )
-        return formatterRulesRepository.save(format)
+        try {
+            logger.info("Creating default formatter rules for userId: $userId")
+            val format =
+                FormatterRules(
+                    userId = userId,
+                    spaceBeforeColon = false,
+                    spaceAfterColon = false,
+                    spaceAroundEquals = false,
+                    lineBreak = 0,
+                    lineBreakPrintln = 0,
+                    conditionalIndentation = 0,
+                )
+            return formatterRulesRepository.save(format)
+        } catch (e: Exception) {
+            logger.error("Error creating formatter rules for userId: $userId", e)
+            throw DatabaseException("Could not create default formatter rules for user: $userId", e)
+        }
     }
 }
