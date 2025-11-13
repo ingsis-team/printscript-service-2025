@@ -188,7 +188,7 @@ class PrintScriptService
                 val parser = Parser()
                 val trees: List<ASTNode> = parser.execute(tokens)
 
-                // Instanciar el linter y aplicar las reglas
+                // Instantiate the linter and apply the rules
                 val linterVersion =
                     LinterVersion.fromString(version)
                         ?: throw ValidationException("Unsupported linter version: $version")
