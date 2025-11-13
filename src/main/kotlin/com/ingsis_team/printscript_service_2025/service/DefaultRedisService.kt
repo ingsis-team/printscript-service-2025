@@ -27,8 +27,6 @@ class DefaultRedisService
                     snippet.correlationID,
                 )
 
-            println("Estoy formateando un snippet")
-
             // Crea un nuevo objeto Snippet con el contenido formateado
             val outputSnippet =
                 Snippet(
@@ -37,7 +35,6 @@ class DefaultRedisService
                     snippet.userId,
                     snippet.correlationID,
                 )
-            println(formattedOutput.string)
 
             // Actualiza el bucket con el contenido formateado
             return outputSnippet
@@ -71,7 +68,7 @@ class DefaultRedisService
             try {
                 // Ejecutar el snippet para verificar que no tenga errores de sintaxis
                 val inputStream = ByteArrayInputStream(snippet.content.toByteArray())
-                val executionOutput = snippetService.runScript(inputStream, "1.1")
+                snippetService.runScript(inputStream, "1.1")
                 
                 // Si la ejecución fue exitosa, retornar success
                 val testResult = "success - Snippet executed without errors"

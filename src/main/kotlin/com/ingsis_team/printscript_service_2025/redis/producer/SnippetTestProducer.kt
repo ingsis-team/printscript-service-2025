@@ -15,7 +15,6 @@ class SnippetTestProducer
         redis: ReactiveRedisTemplate<String, String>,
     ) : RedisStreamProducer(streamKey, redis) {
         suspend fun publishEvent(snippet: Snippet) {
-            println("Publishing test event on stream: $streamKey")
             emit(snippet).awaitSingle()
         }
     }

@@ -320,9 +320,6 @@ class PrintScriptService
                 if (postResponseStatus != HttpStatus.CREATED && postResponseStatus != HttpStatus.NOT_FOUND) {
                     throw RuntimeException("Error al subir el snippet: Código de respuesta $postResponseStatus")
                 }
-
-                // Imprimir el estado de la respuesta
-                println("Snippet actualizado exitosamente con código de respuesta: $postResponseStatus")
             } catch (e: Exception) {
                 throw RuntimeException("Error en la operación de actualización del bucket: ${e.message}", e)
             }

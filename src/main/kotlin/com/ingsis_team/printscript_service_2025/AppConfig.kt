@@ -50,8 +50,6 @@ class AppConfig {
             this::class.java.classLoader.getResource("files/StandardRules.json")?.path
                 ?: throw IllegalArgumentException("Rules file not found")
 
-        println("Rules loaded from: $rulesPath")
-
         return FormatterPS(rulesReader, rulesPath, formattingOperations, lexer, parser)
     }
 
