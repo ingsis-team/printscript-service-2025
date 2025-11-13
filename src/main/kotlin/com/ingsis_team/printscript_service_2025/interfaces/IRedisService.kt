@@ -6,4 +6,6 @@ interface IRedisService {
     fun formatSnippet(snippet: Snippet): Snippet
 
     fun lintSnippet(snippet: Snippet): Snippet
+
+    fun testSnippet(snippet: Snippet): Snippet
 }

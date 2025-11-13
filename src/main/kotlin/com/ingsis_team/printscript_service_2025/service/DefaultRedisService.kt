@@ -64,4 +64,26 @@ class DefaultRedisService
             val outputSnippet = Snippet(snippet.id, brokenRules, snippet.userId, snippet.correlationID)
             return outputSnippet
         }
+
+        override fun testSnippet(snippet: Snippet): Snippet {
+            logger.info("Estoy testeando un snippet")
+
+            try {
+                // Ejecutar el snippet para verificar que no tenga errores de sintaxis
+                val inputStream = ByteArrayInputStream(snippet.content.toByteArray())
+                val executionOutput = snippetService.runScript(inputStream, "1.1")
+                
+                // Si la ejecución fue exitosa, retornar success
+                val testResult = "success - Snippet executed without errors"
+                val outputSnippet = Snippet(snippet.id, testResult, snippet.userId, snippet.correlationID)
+                logger.info("Test passed for snippet ${snippet.id}")
+                return outputSnippet
+            } catch (e: Exception) {
+                // Si hay un error, retornar failure
+                val testResult = "failure - Error: ${e.message}"
+                logger.error("Test failed for snippet ${snippet.id}: ${e.message}")
+                val outputSnippet = Snippet(snippet.id, testResult, snippet.userId, snippet.correlationID)
+                return outputSnippet
+            }
+        }
     }
