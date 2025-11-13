@@ -12,43 +12,43 @@ class RedisSnippetLintConsumerTest {
     @Suppress("UNCHECKED_CAST")
     @Test
     fun `onMessage processes record successfully`() {
-        // Crear mocks básicos
+        // Create basic mocks
         val redisMock = Mockito.mock(ReactiveRedisTemplate::class.java) as ReactiveRedisTemplate<String, String>
         val serviceMock = Mockito.mock(DefaultRedisService::class.java)
 
-        // Crear datos de prueba
+        // Create test data
         val snippet = printscript.redis.dto.Snippet("examepleUserId", "exampleId", "exampleContent", java.util.UUID.randomUUID())
         val record = ObjectRecord.create("test-stream", snippet)
 
-        // Instanciar la clase directamente
+        // Instantiate the class directly
         val consumer = SnippetLintConsumer(redisMock, "test-stream", "test-group", serviceMock)
 
-        // Ejecutar el método `onMessage`
+        // Execute the `onMessage` method
         consumer.onMessage(record)
 
-        // Verificar que el servicio fue invocado correctamente
+        // Verify that the service was invoked correctly
         Mockito.verify(serviceMock).lintSnippet(snippet)
     }
 
     @Test
     @Suppress("UNCHECKED_CAST")
     fun `onMessage handles exceptions gracefully`() {
-        // Crear mocks básicos
+        // Create basic mocks
         val redisMock = Mockito.mock(ReactiveRedisTemplate::class.java) as ReactiveRedisTemplate<String, String>
         val serviceMock = Mockito.mock(printscript.service.DefaultRedisService::class.java)
 
 
-        // Crear datos de prueba
+        // Create test data
         val snippet = printscript.redis.dto.Snippet("exampleUserId", "exampleId", "exampleContent", java.util.UUID.randomUUID())
         val record = ObjectRecord.create("test-stream", snippet)
 
-        // Instanciar la clase directamente
+        // Instantiate the class directly
         val consumer = SnippetLintConsumer(redisMock, "test-stream", "test-group", serviceMock)
 
-        // Ejecutar el método `onMessage`
+        // Execute the `onMessage` method
         consumer.onMessage(record)
 
-        // Verificar que el servicio fue invocado incluso cuando ocurrió una excepción
+        // Verify that the service was invoked even when an exception occurred
         Mockito.verify(serviceMock).lintSnippet(eq(snippet))
     }
 
@@ -57,17 +57,17 @@ class RedisSnippetLintConsumerTest {
     @Test
     @Suppress("UNCHECKED_CAST")
     fun `options returns correct configuration`() {
-        // Crear mocks básicos
+        // Create basic mocks
         val redisMock = Mockito.mock(ReactiveRedisTemplate::class.java) as ReactiveRedisTemplate<String, String>
         val serviceMock = Mockito.mock(DefaultRedisService::class.java)
 
-        // Instanciar la clase directamente
+        // Instantiate the class directly
         val consumer = SnippetLintConsumer(redisMock, "test-stream", "test-group", serviceMock)
 
-        // Ejecutar el método `options`
+        // Execute the `options` method
         val options = consumer.options()
 
-        // Verificar que las configuraciones sean correctas
+        // Verify that the configurations are correct
         assert(options.pollTimeout == Duration.ofMillis(100))
     }
 }

@@ -15,7 +15,6 @@ class SnippetLintProducer
         redis: ReactiveRedisTemplate<String, String>,
     ) : RedisStreamProducer(streamKey, redis) {
         suspend fun publishEvent(snippet: Snippet) {
-            println("Publishing on stream: $streamKey")
             emit(snippet).awaitSingle()
         }
     }

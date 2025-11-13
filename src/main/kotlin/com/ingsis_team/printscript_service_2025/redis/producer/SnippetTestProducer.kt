@@ -8,13 +8,14 @@ import org.springframework.stereotype.Component
 import com.ingsis_team.printscript_service_2025.redis.dto.Snippet
 
 @Component
-class SnippetFormatterProducer
+class SnippetTestProducer
     @Autowired
     constructor(
-        @Value("\${stream.key.format}") streamKey: String,
+        @Value("\${stream.key.test}") streamKey: String,
         redis: ReactiveRedisTemplate<String, String>,
     ) : RedisStreamProducer(streamKey, redis) {
         suspend fun publishEvent(snippet: Snippet) {
             emit(snippet).awaitSingle()
         }
     }
+
