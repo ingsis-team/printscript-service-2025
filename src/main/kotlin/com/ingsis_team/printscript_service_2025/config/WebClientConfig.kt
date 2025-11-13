@@ -1,4 +1,4 @@
-package com.ingsisteam.snippetservice2025.config
+package com.ingsis_team.printscript_service_2025.config
 
 import org.slf4j.MDC
 import org.springframework.context.annotation.Bean
