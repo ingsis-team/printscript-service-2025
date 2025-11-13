@@ -236,7 +236,7 @@ class PrintScriptService
 
             val defaultPath = "./$sanitizedUserId-formatterRules.json"
             try {
-                // Obtener reglas de formato del servicio
+                // Get format rules from the service
                 val formatterRules = formatterService.getFormatterRulesByUserId(userId, correlationId)
                 logger.debug("Loaded formatter rules for user: $userId")
                 val formatterDto =
