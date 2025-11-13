@@ -215,7 +215,7 @@ class PrintScriptService
                 logger.error("Error during linting: ${e.message}", e)
                 throw LintingException("Failed to lint code: ${e.message}", e)
             } finally {
-                // Eliminar el archivo de reglas
+                // Delete the rules file
                 val rulesFile = File(defaultPath)
                 if (rulesFile.exists()) {
                     rulesFile.delete()
