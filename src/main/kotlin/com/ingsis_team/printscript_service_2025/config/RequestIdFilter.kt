@@ -1,4 +1,4 @@
-package com.ingsisteam.snippetservice2025.config
+package com.ingsis_team.printscript_service_2025.config
 
 import jakarta.servlet.Filter
 import jakarta.servlet.FilterChain
