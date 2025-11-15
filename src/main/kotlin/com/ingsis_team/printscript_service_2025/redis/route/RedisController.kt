@@ -33,7 +33,8 @@ class RedisController
         suspend fun changeAndFormatRules(
             @RequestBody data: ChangeRulesDTO,
         ) {
-            logger.info("changeRulesDTO: ${data.rules.forEach(::println)}")
+            logger.info("Received change and format rules request for userId: ${data.userId}")
+            logger.debug("Rules details: ${data.rules}")
             logger.info("Received data: $data")
 
             val spaceBeforeColon = data.rules.find { it.name == "spaceBeforeColon" }?.isActive ?: false
@@ -74,7 +75,8 @@ class RedisController
         suspend fun changeAndLintRules(
             @RequestBody data: ChangeRulesDTO,
         ) {
-            logger.info("changeRulesDTO1: ${data.rules.forEach(::println)}")
+            logger.info("Received change and lint rules request for userId: ${data.userId}")
+            logger.debug("Rules details: ${data.rules}")
             logger.info("Received data2: $data")
 
             val identifierFormat = data.rules.find { it.name == "identifierFormat" }?.value as? String ?: ""

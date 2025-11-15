@@ -10,6 +10,7 @@ import com.ingsis_team.printscript_service_2025.redis.dto.Rule
 import com.ingsis_team.printscript_service_2025.service.FormatterRulesService
 import com.ingsis_team.printscript_service_2025.service.LinterRulesService
 import com.ingsis_team.printscript_service_2025.service.SnippetProcessingService
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
@@ -28,24 +29,31 @@ class SnippetController(
     val linterRulesService: LinterRulesService,
     val formaterRulesService: FormatterRulesService,
 ) {
+    private val logger = LoggerFactory.getLogger(SnippetController::class.java)
+
     @PostMapping("/validate")
     fun validateSnippet(
         @RequestBody validate: String,
     ): ValidationResult {
+        logger.info("Received validation request")
+        logger.debug("Validating snippet content")
         val languageService = snippetProcessingService.selectService("printscript")
         val result = languageService.validate(validate, "1.1")
+        logger.info("Validation completed. IsValid: ${result.isValid}")
         return result
     }
-    // En caso de que no se cumpla alguna de las reglas isvalid:False y te dara la columna, y la fila, en cambio si es valido devolver isvalid: true, teniendo en cuenta
 
     @PostMapping("/run")
     fun runSnippet(
         @RequestBody snippetRunnerDTO: SnippetDTO,
     ): ResponseEntity<SnippetOutputDTO> {
+        logger.info("Received run snippet request. SnippetId: ${snippetRunnerDTO.snippetId}, CorrelationId: ${snippetRunnerDTO.correlationId}")
+        logger.debug("Language: ${snippetRunnerDTO.language}, Version: ${snippetRunnerDTO.version}")
         val languageService = snippetProcessingService.selectService(snippetRunnerDTO.language)
         val inputStream = ByteArrayInputStream(snippetRunnerDTO.input.toByteArray())
         val output: Output = languageService.runScript(inputStream, snippetRunnerDTO.version)
         val snippetOutput = SnippetOutputDTO(output.string, snippetRunnerDTO.correlationId, snippetRunnerDTO.snippetId)
+        logger.info("Snippet executed successfully. SnippetId: ${snippetRunnerDTO.snippetId}")
         return ResponseEntity(snippetOutput, HttpStatus.OK)
     }
 
@@ -53,6 +61,7 @@ class SnippetController(
     fun formatSnippet(
         @RequestBody snippetRunnerDTO: SnippetDTO,
     ): ResponseEntity<SnippetOutputDTO> {
+        logger.info("Received format snippet request. SnippetId: ${snippetRunnerDTO.snippetId}, UserId: ${snippetRunnerDTO.userId}, CorrelationId: ${snippetRunnerDTO.correlationId}")
         val languageService = snippetProcessingService.selectService(snippetRunnerDTO.language)
         val inputStream = ByteArrayInputStream(snippetRunnerDTO.input.toByteArray())
         val output =
@@ -64,6 +73,7 @@ class SnippetController(
                 snippetRunnerDTO.correlationId,
             )
         val snippetOutput = SnippetOutputDTO(output.string, snippetRunnerDTO.correlationId, snippetRunnerDTO.snippetId)
+        logger.info("Snippet formatted successfully. SnippetId: ${snippetRunnerDTO.snippetId}")
         return ResponseEntity(snippetOutput, HttpStatus.OK)
     }
 
@@ -71,6 +81,7 @@ class SnippetController(
     fun runLinter(
         @RequestBody snippetRunnerDTO: SnippetDTO,
     ): ResponseEntity<List<SCAOutput>> {
+        logger.info("Received lint request. UserId: ${snippetRunnerDTO.userId}, CorrelationId: ${snippetRunnerDTO.correlationId}")
         val languageService = snippetProcessingService.selectService(snippetRunnerDTO.language)
         val inputStream = ByteArrayInputStream(snippetRunnerDTO.input.toByteArray())
         val output =
@@ -80,6 +91,7 @@ class SnippetController(
                 snippetRunnerDTO.userId,
                 snippetRunnerDTO.correlationId,
             )
+        logger.info("Linting completed. Found ${output.size} issues")
         return ResponseEntity(output, HttpStatus.OK)
     }
 
@@ -88,6 +100,7 @@ class SnippetController(
         @PathVariable userId: String,
         @RequestHeader("Correlation-id") correlationId: UUID,
     ): ResponseEntity<List<Rule>> {
+        logger.info("Received get formatter rules request. UserId: $userId, CorrelationId: $correlationId")
         val formatterRules = formaterRulesService.getFormatterRulesByUserId(userId, correlationId)
         val rulesList = mutableListOf<Rule>()
 
@@ -112,6 +125,7 @@ class SnippetController(
             ),
         )
 
+        logger.info("Returning ${rulesList.size} formatter rules for userId: $userId")
         return ResponseEntity.ok(rulesList)
     }
 
@@ -120,6 +134,7 @@ class SnippetController(
         @PathVariable userId: String,
         @RequestHeader("Correlation-id") correlationId: UUID,
     ): ResponseEntity<List<Rule>> {
+        logger.info("Received get linter rules request. UserId: $userId, CorrelationId: $correlationId")
         val linterRules = linterRulesService.getLinterRulesByUserId(userId, correlationId)
         val rulesList = mutableListOf<Rule>()
 
@@ -129,6 +144,7 @@ class SnippetController(
         rulesList.add(Rule(id = "2", name = "enablePrintOnly", isActive = linterRules.enablePrintOnly, value = false))
         rulesList.add(Rule(id = "3", name = "enableInputOnly", isActive = linterRules.enableInputOnly, value = false))
 
+        logger.info("Returning ${rulesList.size} linter rules for userId: $userId")
         return ResponseEntity.ok(rulesList)
     }
 
@@ -136,8 +152,11 @@ class SnippetController(
     fun makeTest(
         @RequestBody testDto: TestDTO,
     ): ResponseEntity<String> {
+        logger.info("Received test request")
+        logger.debug("Test with ${testDto.output.size} expected outputs")
         val languageService = snippetProcessingService.selectService("printscript")
         val result = languageService.test(testDto.input, testDto.output, testDto.snippet, testDto.envVars)
+        logger.info("Test completed with result: $result")
         return ResponseEntity(result, HttpStatus.OK)
     }
 }

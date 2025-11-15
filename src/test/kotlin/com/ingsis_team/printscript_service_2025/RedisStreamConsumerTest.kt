@@ -1,6 +1,7 @@
 package com.ingsis_team.printscript_service_2025
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
+import org.slf4j.LoggerFactory
 import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory
 import org.springframework.data.redis.connection.stream.ObjectRecord
 import org.springframework.data.redis.core.ReactiveRedisTemplate
@@ -12,11 +13,12 @@ import kotlin.test.assertEquals
 
 // Concrete test class
 class TestRedisStreamConsumer : RedisStreamConsumer<String>("test-stream", "test-group", DummyRedisTemplate()) {
+    private val logger = LoggerFactory.getLogger(TestRedisStreamConsumer::class.java)
     var lastProcessedRecord: String? = null
 
     public override fun onMessage(record: ObjectRecord<String, String>) {
         lastProcessedRecord = record.value
-        println("Processing record: ${record.value}")
+        logger.debug("Processing record: ${record.value}")
     }
 
     override fun options(): StreamReceiver.StreamReceiverOptions<String, ObjectRecord<String, String>> {
@@ -34,12 +36,14 @@ class DummyRedisTemplate : ReactiveRedisTemplate<String, String>(
 )
 
 class RedisStreamConsumerTest {
+    private val logger = LoggerFactory.getLogger(RedisStreamConsumerTest::class.java)
+
     @Test
     fun `test onMessage execution`() {
         val consumer = TestRedisStreamConsumer()
         val dummyRecord = ObjectRecord.create("test-stream", "test-message")
         consumer.onMessage(dummyRecord)
         assertEquals("test-message", consumer.lastProcessedRecord)
-        println("onMessage executed successfully")
+        logger.debug("onMessage executed successfully")
     }
 }

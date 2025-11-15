@@ -38,11 +38,11 @@ class SnippetProcessingServiceTest {
         val unsupportedLanguage = "python"
 
         val exception =
-            assertThrows(IllegalArgumentException::class.java) {
+            assertThrows(com.ingsis_team.printscript_service_2025.exception.UnsupportedLanguageException::class.java) {
                 snippetProcessingService.selectService(unsupportedLanguage)
             }
 
-        assertEquals("Unsupported language $unsupportedLanguage", exception.message)
+        assertEquals("Unsupported language: $unsupportedLanguage. Only 'printscript' is supported.", exception.message)
         verifyNoInteractions(applicationContext)
     }
 }

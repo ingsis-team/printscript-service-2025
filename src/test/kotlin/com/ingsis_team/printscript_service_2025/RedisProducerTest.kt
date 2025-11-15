@@ -1,6 +1,7 @@
 package com.ingsis_team.printscript_service_2025
 
 import kotlinx.coroutines.reactive.awaitSingle
+import org.slf4j.LoggerFactory
 import org.springframework.data.redis.connection.stream.RecordId
 import org.springframework.data.redis.connection.stream.StreamRecords
 import org.springframework.data.redis.core.ReactiveRedisTemplate
@@ -19,16 +20,20 @@ abstract class RedisStreamProducer(
 
 class SnippetFormatterProducer(streamKey: String, redis: ReactiveRedisTemplate<String, String>) :
     RedisStreamProducer(streamKey, redis) {
+    private val logger = LoggerFactory.getLogger(SnippetFormatterProducer::class.java)
+
     suspend fun publishEvent(snippet: Snippet) {
-        println("Publishing on stream: $streamKey")
+        logger.debug("Publishing snippet ${snippet.id} on stream: $streamKey")
         emit(snippet).awaitSingle()
     }
 }
 
 class SnippetLintProducer(streamKey: String, redis: ReactiveRedisTemplate<String, String>) :
     RedisStreamProducer(streamKey, redis) {
+    private val logger = LoggerFactory.getLogger(SnippetLintProducer::class.java)
+
     suspend fun publishEvent(snippet: Snippet) {
-        println("Publishing on stream: $streamKey")
+        logger.debug("Publishing snippet ${snippet.id} on stream: $streamKey")
         emit(snippet).awaitSingle()
     }
 }
