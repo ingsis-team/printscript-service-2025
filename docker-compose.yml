@@ -31,6 +31,13 @@ services:
       GITHUB_USERNAME: ${GITHUB_USERNAME}
       GITHUB_TOKEN: ${GITHUB_TOKEN}
 
+      # New Relic configuration
+      NEW_RELIC_APP_NAME: ${NEW_RELIC_APP_NAME}
+      NEW_RELIC_LICENSE_KEY: ${NEW_RELIC_LICENSE_KEY}
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS}
+
+    volumes:
+      - ./newrelic:/newrelic
     depends_on:
       db:
         condition: service_healthy
