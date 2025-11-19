@@ -13,9 +13,9 @@ class StartupLogger {
     @EventListener(ApplicationReadyEvent::class)
     fun onApplicationReady() {
         logger.info("\n============================================================")
-        logger.info("🖨️ PRINTSCRIPT SERVICE IS RUNNING!")
-        logger.info("📍 Server: http://localhost:8082")
-        logger.info("📚 API Docs: http://localhost:8082/swagger-ui.html")
+        logger.info("PRINTSCRIPT SERVICE IS RUNNING!")
+        logger.info("Server: http://localhost:8082")
+        logger.info("API Docs: http://localhost:8082/swagger-ui.html")
         logger.info("============================================================\n")
     }
 }
