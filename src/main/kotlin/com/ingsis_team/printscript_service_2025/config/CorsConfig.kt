@@ -15,6 +15,8 @@ class CorsConfig {
 
         // Allow frontend origin
         config.allowedOrigins = listOf(
+            "http://localhost",
+            "http://localhost:80",
             "http://localhost:5173",
             "http://localhost:3000",
             "https://localhost:5173",
