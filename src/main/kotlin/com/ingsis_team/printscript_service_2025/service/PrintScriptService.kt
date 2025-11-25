@@ -121,7 +121,12 @@ class PrintScriptService
                 val script = parser.execute(tokens)
                 val linterVersion =
                     LinterVersion.fromString(version)
-                        ?: throw ValidationException("Unsupported linter version: $version")
+                        ?: return ValidationResult(
+                            isValid = false,
+                            rule = "Unsupported version: $version",
+                            line = 0,
+                            column = 0
+                        )
                 val linter = Linter(linterVersion)
 
                 val results = linter.check(script)
@@ -141,18 +146,30 @@ class PrintScriptService
                 } else {
                     val firstBrokenRule = scaOutputs.first()
                     logger.warn("Validation failed - found ${scaOutputs.size} broken rules. First: ${firstBrokenRule.ruleBroken} at line ${firstBrokenRule.lineNumber}")
+
+                    // Intentar extraer el número de columna del mensaje de descripción
+                    val columnNumber = try {
+                        firstBrokenRule.description.split(", column ").getOrNull(1)?.toIntOrNull() ?: 0
+                    } catch (e: Exception) {
+                        0
+                    }
+
                     return ValidationResult(
                         isValid = false,
                         rule = firstBrokenRule.ruleBroken,
                         line = firstBrokenRule.lineNumber,
-                        column = firstBrokenRule.description.split(", column ")[1].toInt(),
+                        column = columnNumber,
                     )
                 }
-            } catch (e: ValidationException) {
-                throw e
             } catch (e: Exception) {
-                logger.error("Error during validation: ${e.message}", e)
-                throw ParsingException("Failed to validate code: ${e.message}", e)
+                // En lugar de lanzar una excepción, devolver un ValidationResult con el error de sintaxis
+                logger.warn("Syntax or parsing error during validation: ${e.message}")
+                return ValidationResult(
+                    isValid = false,
+                    rule = e.message ?: "Syntax error",
+                    line = 0,
+                    column = 0
+                )
             }
         }
 
@@ -307,11 +324,6 @@ class PrintScriptService
                 // Execute the formatter and get the formatted code
                 val formattedCode = formatter.format(code)
 
-                // Clean up the temporary file
-                if (rulesFile.exists()) {
-                    rulesFile.delete()
-                }
-
                 // Update the formatted content in the bucket (optional - does not fail if service is not available)
                 try {
                     updateOnBucket(snippetId, formattedCode)
@@ -322,8 +334,20 @@ class PrintScriptService
 
                 // Return the formatted result
                 return Output(formattedCode)
+            } catch (e: ValidationException) {
+                throw e
+            } catch (e: ExternalServiceException) {
+                throw e
             } catch (e: Exception) {
-                throw RuntimeException("Error al formatear el código: ${e.message}", e)
+                logger.error("Error during formatting: ${e.message}", e)
+                throw FormattingException("Failed to format code: ${e.message}", e)
+            } finally {
+                // Clean up the temporary file
+                val rulesFile = File(defaultPath)
+                if (rulesFile.exists()) {
+                    rulesFile.delete()
+                    logger.debug("Temporary formatter rules file deleted: $defaultPath")
+                }
             }
         }
 
@@ -342,7 +366,7 @@ class PrintScriptService
                     assetServiceApi
                         .delete()
                         .uri("/snippets/{key}", key)
-                        .exchangeToMono { clientResponse -> Mono.just(clientResponse.statusCode()) } // Wrap status code in Mono
+                        .exchangeToMono { clientResponse -> Mono.just(clientResponse.statusCode()) }
                         .block()
 
                 // Validate if deletion was successful
@@ -359,7 +383,7 @@ class PrintScriptService
                         .post()
                         .uri("/snippets/{key}", key)
                         .bodyValue(content)
-                        .exchangeToMono { clientResponse -> Mono.just(clientResponse.statusCode()) } // Wrap status code in Mono
+                        .exchangeToMono { clientResponse -> Mono.just(clientResponse.statusCode()) }
                         .block()
 
                 // Validate if upload was successful
