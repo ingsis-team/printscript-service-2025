@@ -22,7 +22,7 @@ class CorsConfig {
             "https://localhost:5173",
             "https://localhost:3000",
             "http://snippet-prueba.duckdns.org",
-            "https://snippet-prueba.duckdns.org"
+            "https://snippet-prueba.duckdns.org",
         )
 
         // Allow all methods
