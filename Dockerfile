@@ -23,5 +23,10 @@ RUN ./gradlew --no-daemon -x test bootJar
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=builder /home/gradle/project/build/libs/*.jar app.jar
+
+# Copy New Relic agent and config
+COPY --chown=spring:spring newrelic/newrelic.jar /newrelic/newrelic.jar
+COPY --chown=spring:spring newrelic/newrelic.yml /newrelic/newrelic.yml
+
 EXPOSE 8080
 ENTRYPOINT ["java","-jar","app.jar"]
