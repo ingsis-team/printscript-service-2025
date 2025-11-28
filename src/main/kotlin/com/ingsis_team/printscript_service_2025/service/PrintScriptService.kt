@@ -378,22 +378,21 @@ class PrintScriptService
                 logger.debug("Snippet deleted from bucket (or did not exist). Status: $deleteResponseStatus")
 
                 // Upload the new content to the bucket
-                val postResponseStatus =
+                val putResponseStatus =
                     assetServiceApi
-                        .post()
+                        .put()
                         .uri("/snippets/{key}", key)
                         .bodyValue(content)
                         .exchangeToMono { clientResponse -> Mono.just(clientResponse.statusCode()) }
                         .block()
 
                 // Validate if upload was successful
-                // Allow 404 (NOT_FOUND) if the asset service is not available
-                // Formatting can work without updating the bucket
-                if (postResponseStatus != HttpStatus.CREATED && postResponseStatus != HttpStatus.NOT_FOUND) {
-                    logger.error("Failed to upload snippet to bucket. Status: $postResponseStatus")
-                    throw RuntimeException("Error al subir el snippet: Código de respuesta $postResponseStatus")
+                // PUT returns 200 (OK) for updates or 201 (CREATED) for new assets
+                if (putResponseStatus != HttpStatus.OK && putResponseStatus != HttpStatus.CREATED) {
+                    logger.error("Failed to update snippet in bucket. Status: $putResponseStatus")
+                    throw RuntimeException("Error al actualizar el snippet: Código de respuesta $putResponseStatus")
                 }
-                logger.info("Snippet successfully uploaded to bucket. Status: $postResponseStatus")
+                logger.info("Snippet successfully updated in bucket. Status: $putResponseStatus")
             } catch (e: Exception) {
                 logger.error("Error updating bucket for snippetId $key: ${e.message}", e)
                 throw ExternalServiceException("Error communicating with asset service: ${e.message}", e)
