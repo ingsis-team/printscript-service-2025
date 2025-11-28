@@ -26,10 +26,15 @@ COPY --from=builder /home/gradle/project/build/libs/*.jar app.jar
 
 # Create /newrelic directory and copy New Relic agent and config
 RUN mkdir -p /newrelic
-COPY newrelic/newrelic.jar /newrelic/newrelic.jar
+
+
+ADD https://download.newrelic.com/newrelic/java-agent/newrelic-agent/current/newrelic-agent.jar /newrelic/newrelic.jar
+
+# Copiamos SOLO la configuración (el .yml es texto, no falla con git)
 COPY newrelic/newrelic.yml /newrelic/newrelic.yml
 
+# Damos permisos de lectura
+RUN chmod 644 /newrelic/newrelic.jar
+
 EXPOSE 8080
-
-
-ENTRYPOINT ["java","-jar","app.jar"]
+ENTRYPOINT ["java", "-javaagent:/newrelic/newrelic.jar", "-jar", "app.jar"]
