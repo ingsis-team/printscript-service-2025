@@ -123,8 +123,11 @@ class PrintScriptService
         ): ValidationResult {
             try {
                 logger.info("Validating code with version: $version")
+                logger.debug("Input content: '$input'")
                 val lexer = Lexer(tokenMapper)
                 val tokens = lexer.execute(input)
+                val tokenTypes = tokens.take(10).map { token -> token.getType().name }
+                logger.debug("Generated ${tokens.size} tokens: $tokenTypes")
                 val script = parser.execute(tokens)
                 val linterVersion =
                     LinterVersion.fromString(version)

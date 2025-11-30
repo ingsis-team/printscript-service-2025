@@ -43,8 +43,16 @@ class SnippetController(
     fun validateSnippet(
         @RequestBody validate: String,
     ): ValidationResult {
-        logger.info("Received validation request")
-        logger.debug("Validating snippet content")
+        logger.info("Received validation request. Content length: ${validate.length}, Content preview: '${validate.take(100).replace("\n", "\\n").replace("\r", "\\r")}'")
+        if (validate.isBlank()) {
+            logger.warn("Received empty or blank content for validation")
+            return ValidationResult(
+                isValid = false,
+                rule = "Empty content",
+                line = 0,
+                column = 0
+            )
+        }
         val languageService = snippetProcessingService.selectService("printscript")
         val result = languageService.validate(validate, "1.1")
         logger.info("Validation completed. IsValid: ${result.isValid}")
