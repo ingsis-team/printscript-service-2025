@@ -32,7 +32,6 @@ class ModelDtoTest {
     fun `FormatterRulesFileDTO should be correctly initialized`() {
         val formatterRulesFileDTO =
             FormatterRulesFileDTO(
-                userId = "user123",
                 spaceBeforeColon = true,
                 spaceAfterColon = true,
                 spaceAroundEquals = true,
@@ -41,7 +40,6 @@ class ModelDtoTest {
                 conditionalIndentation = 4,
             )
 
-        assertEquals("user123", formatterRulesFileDTO.userId)
         assertEquals(true, formatterRulesFileDTO.spaceBeforeColon)
         assertEquals(true, formatterRulesFileDTO.spaceAfterColon)
         assertEquals(true, formatterRulesFileDTO.spaceAroundEquals)

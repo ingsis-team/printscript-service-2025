@@ -56,7 +56,6 @@ class FormatterRulesServiceTest {
         `when`(formatterRulesRepository.findByUserId(userId)).thenReturn(Optional.of(existingRules))
 
         val updatedDto = FormatterRulesFileDTO(
-            userId = userId,
             spaceBeforeColon = true,
             spaceAfterColon = true,
             spaceAroundEquals = true,
