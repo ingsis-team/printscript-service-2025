@@ -1,6 +1,8 @@
 package com.ingsis_team.printscript_service_2025.service
 
 import ast.ASTNode
+import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.MapperFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.PropertyNamingStrategies
 import formatOperations.AssignationFormatter
@@ -55,7 +57,12 @@ class PrintScriptService
         companion object {
             fun objectMapper(): ObjectMapper {
                 val mapper = ObjectMapper()
-                mapper.propertyNamingStrategy = PropertyNamingStrategies.UPPER_CAMEL_CASE
+                // Serializar por defecto en snake_case para compatibilidad con front/cliente
+                mapper.propertyNamingStrategy = PropertyNamingStrategies.SNAKE_CASE
+                // Aceptar propiedades independientemente de mayúsculas/minúsculas
+                mapper.configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
+                // Ignorar campos desconocidos para ser tolerante con cambios en JSON
+                mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 return mapper
             }
         }
@@ -116,8 +123,11 @@ class PrintScriptService
         ): ValidationResult {
             try {
                 logger.info("Validating code with version: $version")
+                logger.debug("Input content: '$input'")
                 val lexer = Lexer(tokenMapper)
                 val tokens = lexer.execute(input)
+                val tokenTypes = tokens.take(10).map { token -> token.getType().name }
+                logger.debug("Generated ${tokens.size} tokens: $tokenTypes")
                 val script = parser.execute(tokens)
                 val linterVersion =
                     LinterVersion.fromString(version)
@@ -268,7 +278,8 @@ class PrintScriptService
 
                 // Escribir las reglas en un archivo JSON temporal
                 val rulesFile = File(defaultPath)
-                ObjectMapper().writeValue(rulesFile, formatterDto)
+                // Usar el ObjectMapper configurado en companion object para respetar snake_case y opciones
+                objectMapper().writeValue(rulesFile, formatterDto)
 
                 // Configurar las reglas, lexer, parser y operaciones
                 val rulesReader =

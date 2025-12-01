@@ -46,7 +46,6 @@ class RedisController
 
             val formatterDto =
                 FormatterRulesFileDTO(
-                    data.userId,
                     spaceBeforeColon,
                     spaceAfterColon,
                     spaceAroundEquals,
@@ -55,7 +54,7 @@ class RedisController
                     conditionalIndentation,
                 )
             logger.info(
-                "formatterDto: userId=${formatterDto.userId}, spaceBeforeColon=${formatterDto.spaceBeforeColon}," +
+                "formatterDto: userId=${data.userId}, spaceBeforeColon=${formatterDto.spaceBeforeColon}," +
                     " spaceAfterColon=${formatterDto.spaceAfterColon}, " +
                     "spaceAroundEquals=${formatterDto.spaceAroundEquals}, lineBreak=${formatterDto.lineBreak}," +
                     " lineBreakPrintln=${formatterDto.lineBreakPrintln}," +
@@ -107,7 +106,7 @@ class RedisController
             logger.info("Rules published2")
         }
 
-        @PutMapping("/format/snippet")
+        @PutMapping("/publish/format/snippet")
         suspend fun formatSnippet(
             @RequestBody snippet: Snippet,
         ) {
@@ -116,7 +115,7 @@ class RedisController
             logger.info("Format event published for snippet: ${snippet.id}")
         }
 
-        @PutMapping("/lint/snippet")
+        @PutMapping("/publish/lint/snippet")
         suspend fun lintSnippet(
             @RequestBody snippet: Snippet,
         ) {
@@ -125,7 +124,7 @@ class RedisController
             logger.info("Lint event published for snippet: ${snippet.id}")
         }
 
-        @PutMapping("/test/snippet")
+        @PutMapping("/publish/test/snippet")
         suspend fun testSnippet(
             @RequestBody snippet: Snippet,
         ) {

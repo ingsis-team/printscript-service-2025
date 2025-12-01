@@ -1,8 +1,27 @@
 package com.ingsis_team.printscript_service_2025.redis.dto
 
+import com.fasterxml.jackson.annotation.JsonAlias
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.annotation.JsonProperty
 import java.util.*
 
-data class Snippet(val userId: String, val id: String, val content: String, val correlationID: UUID) {
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class Snippet(
+    @JsonProperty("userId")
+    @JsonAlias("user_id")
+    val userId: String,
+
+    @JsonProperty("id")
+    @JsonAlias("snippetId", "snippet_id")
+    val id: String,
+
+    @JsonProperty("content")
+    val content: String,
+
+    @JsonProperty("correlationID")
+    @JsonAlias("correlation_id", "correlationId")
+    val correlationID: UUID,
+) {
     override fun toString(): String {
         return "Snippet{ userId:$userId, id:$id, content:$content, correlationId:$correlationID"
     }
