@@ -82,7 +82,7 @@ class FormatterRulesService(
                     spaceBeforeColon = false,
                     spaceAfterColon = false,
                     spaceAroundEquals = false,
-                    lineBreak = 0,
+                    lineBreak = 1,
                     lineBreakPrintln = 0,
                     conditionalIndentation = 0,
                 )
