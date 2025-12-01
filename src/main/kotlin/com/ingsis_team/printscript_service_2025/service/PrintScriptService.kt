@@ -65,6 +65,17 @@ class PrintScriptService
                 mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 return mapper
             }
+
+            // ObjectMapper para archivos de reglas (sin snake_case para el paquete printscript)
+            fun rulesObjectMapper(): ObjectMapper {
+                val mapper = ObjectMapper()
+                // NO usar snake_case - mantener camelCase para compatibilidad con RulesReader
+                // Aceptar propiedades independientemente de mayúsculas/minúsculas
+                mapper.configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
+                // Ignorar campos desconocidos para ser tolerante con cambios en JSON
+                mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                return mapper
+            }
         }
 
         val assetServiceApi = WebClient.builder().baseUrl("http://$assetUrl/v1/asset").build()
@@ -204,7 +215,11 @@ class PrintScriptService
                     )
 
                 val rulesFile = File(defaultPath)
-                objectMapper().writeValue(rulesFile, linterDto)
+                // Usar rulesObjectMapper() que mantiene las propiedades correctas
+                rulesObjectMapper().writeValue(rulesFile, linterDto)
+
+                // Log para debug: mostrar contenido del archivo
+                logger.debug("Linter rules file created at: $defaultPath with content: ${rulesFile.readText()}")
 
                 val code = input.bufferedReader().use { it.readText() }
 
@@ -278,8 +293,11 @@ class PrintScriptService
 
                 // Escribir las reglas en un archivo JSON temporal
                 val rulesFile = File(defaultPath)
-                // Usar el ObjectMapper configurado en companion object para respetar snake_case y opciones
-                objectMapper().writeValue(rulesFile, formatterDto)
+                // Usar rulesObjectMapper() que mantiene camelCase para compatibilidad con RulesReader
+                rulesObjectMapper().writeValue(rulesFile, formatterDto)
+
+                // Log para debug: mostrar contenido del archivo
+                logger.debug("Formatter rules file created at: $defaultPath with content: ${rulesFile.readText()}")
 
                 // Configurar las reglas, lexer, parser y operaciones
                 val rulesReader =
@@ -335,78 +353,20 @@ class PrintScriptService
                 // Execute the formatter and get the formatted code
                 val formattedCode = formatter.format(code)
 
-                // Update the formatted content in the bucket (optional - does not fail if service is not available)
-                try {
-                    updateOnBucket(snippetId, formattedCode)
-                } catch (e: Exception) {
-                    // Log the error but don't fail the formatting
-                    logger.warn("Could not update bucket, but formatting was successful: ${e.message}")
-                }
-
                 // Return the formatted result
                 return Output(formattedCode)
             } catch (e: ValidationException) {
-                throw e
-            } catch (e: ExternalServiceException) {
                 throw e
             } catch (e: Exception) {
                 logger.error("Error during formatting: ${e.message}", e)
                 throw FormattingException("Failed to format code: ${e.message}", e)
             } finally {
-                // Clean up the temporary file
+                // Delete the rules file
                 val rulesFile = File(defaultPath)
                 if (rulesFile.exists()) {
                     rulesFile.delete()
                     logger.debug("Temporary formatter rules file deleted: $defaultPath")
                 }
-            }
-        }
-
-        fun sanitizeUserId(userId: String): String {
-            return userId.replace(Regex("[^a-zA-Z0-9.-]"), "_")
-        }
-
-        fun updateOnBucket(
-            key: String,
-            content: String,
-        ) {
-            logger.info("Updating bucket for snippetId: $key")
-            try {
-                // Delete the existing content in the bucket
-                val deleteResponseStatus =
-                    assetServiceApi
-                        .delete()
-                        .uri("/snippets/{key}", key)
-                        .exchangeToMono { clientResponse -> Mono.just(clientResponse.statusCode()) }
-                        .block()
-
-                // Validate if deletion was successful
-                // Allow 404 (NOT_FOUND) since the snippet may not exist yet
-                if (deleteResponseStatus != HttpStatus.NO_CONTENT && deleteResponseStatus != HttpStatus.NOT_FOUND) {
-                    logger.error("Failed to delete snippet from bucket. Status: $deleteResponseStatus")
-                    throw RuntimeException("Error al eliminar el snippet: Código de respuesta $deleteResponseStatus")
-                }
-                logger.debug("Snippet deleted from bucket (or did not exist). Status: $deleteResponseStatus")
-
-                // Upload the new content to the bucket
-                val putResponseStatus =
-                    assetServiceApi
-                        .put()
-                        .uri("/snippets/{key}", key)
-                        .bodyValue(content)
-                        .exchangeToMono { clientResponse -> Mono.just(clientResponse.statusCode()) }
-                        .block()
-
-                // Validate if upload was successful
-                // PUT returns 200 (OK) for updates or 201 (CREATED) for new assets
-                if (putResponseStatus != HttpStatus.OK && putResponseStatus != HttpStatus.CREATED) {
-                    logger.error("Failed to update snippet in bucket. Status: $putResponseStatus")
-                    throw RuntimeException("Error al actualizar el snippet: Código de respuesta $putResponseStatus")
-                }
-                logger.info("Snippet successfully updated in bucket. Status: $putResponseStatus")
-            } catch (e: Exception) {
-                logger.error("Error updating bucket for snippetId $key: ${e.message}", e)
-                throw ExternalServiceException("Error communicating with asset service: ${e.message}", e)
             }
         }
     }
