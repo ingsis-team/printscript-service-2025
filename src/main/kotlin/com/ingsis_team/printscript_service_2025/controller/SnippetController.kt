@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
+import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.io.ByteArrayInputStream
 import java.util.UUID
@@ -27,20 +28,39 @@ import com.ingsis_team.printscript_service_2025.model.dto.LinterRulesFileDTO
 import com.ingsis_team.printscript_service_2025.exception.ValidationException
 import com.ingsis_team.printscript_service_2025.interfaces.IRedisService
 import com.ingsis_team.printscript_service_2025.redis.dto.Snippet
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
+import io.swagger.v3.oas.annotations.media.Content
+import io.swagger.v3.oas.annotations.media.Schema
+import io.swagger.v3.oas.annotations.responses.ApiResponse
+import io.swagger.v3.oas.annotations.responses.ApiResponses
+import io.swagger.v3.oas.annotations.tags.Tag
 
 
 @RestController
+@RequestMapping
+@Tag(name = "Snippet Operations", description = "API para operaciones de snippets de PrintScript: validación, ejecución, formateo, linting y gestión de reglas")
 class SnippetController(
     private val snippetProcessingService: SnippetProcessingService,
     val linterRulesService: LinterRulesService,
     val formaterRulesService: FormatterRulesService,
-    // Inyectar implementación de Redis para procesar eventos asíncronos
     private val redisService: IRedisService,
 ) {
     private val logger = LoggerFactory.getLogger(SnippetController::class.java)
 
+    @Operation(
+        summary = "Validar código de snippet",
+        description = "Valida la sintaxis de un snippet de código PrintScript sin ejecutarlo"
+    )
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Validación completada exitosamente",
+            content = [Content(mediaType = "application/json", schema = Schema(implementation = ValidationResult::class))]),
+        ApiResponse(responseCode = "400", description = "Contenido inválido o vacío"),
+        ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    ])
     @PostMapping("/validate")
     fun validateSnippet(
+        @Parameter(description = "Código del snippet a validar", required = true)
         @RequestBody validate: String,
     ): ValidationResult {
         logger.info("Received validation request. Content length: ${validate.length}, Content preview: '${validate.take(100).replace("\n", "\\n").replace("\r", "\\r")}'")
@@ -59,8 +79,19 @@ class SnippetController(
         return result
     }
 
+    @Operation(
+        summary = "Ejecutar snippet",
+        description = "Ejecuta un snippet de código PrintScript y devuelve el resultado"
+    )
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Snippet ejecutado exitosamente",
+            content = [Content(mediaType = "application/json", schema = Schema(implementation = SnippetOutputDTO::class))]),
+        ApiResponse(responseCode = "400", description = "Datos del snippet inválidos"),
+        ApiResponse(responseCode = "500", description = "Error durante la ejecución")
+    ])
     @PostMapping("/run")
     fun runSnippet(
+        @Parameter(description = "Datos del snippet a ejecutar", required = true)
         @RequestBody snippetRunnerDTO: SnippetDTO,
     ): ResponseEntity<SnippetOutputDTO> {
         logger.info("Received run snippet request. SnippetId: ${snippetRunnerDTO.snippetId}, CorrelationId: ${snippetRunnerDTO.correlationId}")
@@ -73,8 +104,20 @@ class SnippetController(
         return ResponseEntity(snippetOutput, HttpStatus.OK)
     }
 
+    @Operation(
+        summary = "Formatear snippet",
+        description = "Aplica reglas de formateo al código del snippet según las reglas configuradas por el usuario"
+    )
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Snippet formateado exitosamente",
+            content = [Content(mediaType = "application/json", schema = Schema(implementation = SnippetOutputDTO::class))]),
+        ApiResponse(responseCode = "400", description = "Datos del snippet inválidos"),
+        ApiResponse(responseCode = "404", description = "Reglas de formateo no encontradas"),
+        ApiResponse(responseCode = "500", description = "Error durante el formateo")
+    ])
     @PostMapping("/format")
     fun formatSnippet(
+        @Parameter(description = "Datos del snippet a formatear", required = true)
         @RequestBody snippetRunnerDTO: SnippetDTO,
     ): ResponseEntity<SnippetOutputDTO> {
         logger.info("Received format snippet request. SnippetId: ${snippetRunnerDTO.snippetId}, UserId: ${snippetRunnerDTO.userId}, CorrelationId: ${snippetRunnerDTO.correlationId}")
@@ -93,8 +136,20 @@ class SnippetController(
         return ResponseEntity(snippetOutput, HttpStatus.OK)
     }
 
+    @Operation(
+        summary = "Analizar snippet con linter",
+        description = "Ejecuta análisis estático de código (linting) sobre el snippet según las reglas configuradas"
+    )
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Análisis completado, retorna lista de problemas encontrados",
+            content = [Content(mediaType = "application/json", schema = Schema(implementation = SCAOutput::class))]),
+        ApiResponse(responseCode = "400", description = "Datos del snippet inválidos"),
+        ApiResponse(responseCode = "404", description = "Reglas de linter no encontradas"),
+        ApiResponse(responseCode = "500", description = "Error durante el análisis")
+    ])
     @PostMapping("/lint")
     fun runLinter(
+        @Parameter(description = "Datos del snippet a analizar", required = true)
         @RequestBody snippetRunnerDTO: SnippetDTO,
     ): ResponseEntity<List<SCAOutput>> {
         logger.info("Received lint request. UserId: ${snippetRunnerDTO.userId}, CorrelationId: ${snippetRunnerDTO.correlationId}")
@@ -111,81 +166,97 @@ class SnippetController(
         return ResponseEntity(output, HttpStatus.OK)
     }
 
+    @Operation(
+        summary = "Obtener reglas de formateo",
+        description = "Obtiene las reglas de formateo configuradas para un usuario específico"
+    )
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Reglas obtenidas exitosamente",
+            content = [Content(mediaType = "application/json", schema = Schema(implementation = Rule::class))]),
+        ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
+        ApiResponse(responseCode = "500", description = "Error al obtener reglas")
+    ])
     @GetMapping("/rules/format/{userId}")
     fun getFormatterRules(
+        @Parameter(description = "ID del usuario", required = true)
         @PathVariable userId: String,
+        @Parameter(description = "ID de correlación para trazabilidad")
         @RequestHeader(value = "Correlation-id", required = false) correlationId: UUID?,
     ): ResponseEntity<List<Rule>> {
         val corr = correlationId ?: UUID.randomUUID()
         logger.info("Received get formatter rules request. UserId: $userId, CorrelationId: $corr")
         val formatterRules = formaterRulesService.getFormatterRulesByUserId(userId, corr)
-        val rulesList = mutableListOf<Rule>()
-
-        rulesList.add(Rule(id = "1", name = "spaceBeforeColon", isActive = formatterRules.spaceBeforeColon, value = false))
-        rulesList.add(Rule(id = "2", name = "spaceAfterColon", isActive = formatterRules.spaceAfterColon, value = false))
-        rulesList.add(Rule(id = "3", name = "spaceAroundEquals", isActive = formatterRules.spaceAroundEquals, value = false))
-        rulesList.add(Rule(id = "4", name = "lineBreak", isActive = formatterRules.lineBreak != 0, value = formatterRules.lineBreak))
-        rulesList.add(
-            Rule(
-                id = "5",
-                name = "lineBreakPrintln",
-                isActive = formatterRules.lineBreakPrintln != 0,
-                value = formatterRules.lineBreakPrintln,
-            ),
-        )
-        rulesList.add(
-            Rule(
-                id = "6",
-                name = "conditionalIndentation",
-                isActive = formatterRules.conditionalIndentation != 0,
-                value = formatterRules.conditionalIndentation,
-            ),
+        val rulesList = listOf(
+            Rule(name = "spaceBeforeColon", value = formatterRules.spaceBeforeColon),
+            Rule(name = "spaceAfterColon", value = formatterRules.spaceAfterColon),
+            Rule(name = "spaceAroundEquals", value = formatterRules.spaceAroundEquals),
+            Rule(name = "lineBreak", value = formatterRules.lineBreak),
+            Rule(name = "lineBreakPrintln", value = formatterRules.lineBreakPrintln),
+            Rule(name = "conditionalIndentation", value = formatterRules.conditionalIndentation),
         )
 
         logger.info("Returning ${rulesList.size} formatter rules for userId: $userId")
         return ResponseEntity.ok(rulesList)
     }
 
+    @Operation(
+        summary = "Obtener reglas de linter",
+        description = "Obtiene las reglas de análisis estático configuradas para un usuario específico"
+    )
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Reglas obtenidas exitosamente",
+            content = [Content(mediaType = "application/json", schema = Schema(implementation = Rule::class))]),
+        ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
+        ApiResponse(responseCode = "500", description = "Error al obtener reglas")
+    ])
     @GetMapping("/rules/lint/{userId}")
     fun getLinterRules(
+        @Parameter(description = "ID del usuario", required = true)
         @PathVariable userId: String,
+        @Parameter(description = "ID de correlación para trazabilidad")
         @RequestHeader(value = "Correlation-id", required = false) correlationId: UUID?,
     ): ResponseEntity<List<Rule>> {
         val corr = correlationId ?: UUID.randomUUID()
         logger.info("Received get linter rules request. UserId: $userId, CorrelationId: $corr")
         val linterRules = linterRulesService.getLinterRulesByUserId(userId, corr)
-        val rulesList = mutableListOf<Rule>()
-
-        rulesList.add(
-            Rule(id = "1", name = "identifierFormat", isActive = linterRules.identifierFormat != "", value = linterRules.identifierFormat),
+        val rulesList = listOf(
+            Rule(name = "identifier_format", value = linterRules.identifierFormat),
+            Rule(name = "enablePrintOnly", value = linterRules.enablePrintOnly),
+            Rule(name = "enableInputOnly", value = linterRules.enableInputOnly),
         )
-        rulesList.add(Rule(id = "2", name = "enablePrintOnly", isActive = linterRules.enablePrintOnly, value = false))
-        rulesList.add(Rule(id = "3", name = "enableInputOnly", isActive = linterRules.enableInputOnly, value = false))
 
         logger.info("Returning ${rulesList.size} linter rules for userId: $userId")
         return ResponseEntity.ok(rulesList)
     }
 
+    @Operation(
+        summary = "Actualizar reglas de formateo",
+        description = "Actualiza las reglas de formateo para un usuario. Las reglas disponibles son: spaceBeforeColon, spaceAfterColon, spaceAroundEquals, lineBreak, lineBreakPrintln, conditionalIndentation"
+    )
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Reglas actualizadas exitosamente",
+            content = [Content(mediaType = "application/json", schema = Schema(implementation = Rule::class))]),
+        ApiResponse(responseCode = "400", description = "Reglas inválidas"),
+        ApiResponse(responseCode = "500", description = "Error al actualizar reglas")
+    ])
     @PostMapping("/rules/format/{userId}")
     fun updateFormatterRules(
+        @Parameter(description = "ID del usuario", required = true)
         @PathVariable userId: String,
+        @Parameter(description = "ID de correlación para trazabilidad")
         @RequestHeader(value = "Correlation-id", required = false) correlationId: UUID?,
+        @Parameter(description = "Lista de reglas a actualizar (name-value pairs)", required = true)
         @RequestBody rules: List<Rule>,
     ): ResponseEntity<List<Rule>> {
         val corr = correlationId ?: UUID.randomUUID()
-        logger.info("Received update formatter rules request. UserId: $userId, CorrelationId: $corr")
+        logger.info("Received update formatter rules request. UserId: $userId, CorrelationId: $corr, Rules: $rules")
 
-        // Validar header X-User-Id si viene presente
-        // Nota: Spring no permite duplicar parámetros en firma; leer el header manualmente si es necesario en overload.
-        // Aquí se asume la validación por encabezado adicional en la ruta /rules
-
-        // Map incoming list to FormatterRulesFileDTO
-        val spaceBeforeColon = rules.find { it.name == "spaceBeforeColon" }?.isActive ?: false
-        val spaceAfterColon = rules.find { it.name == "spaceAfterColon" }?.isActive ?: false
-        val spaceAroundEquals = rules.find { it.name == "spaceAroundEquals" }?.isActive ?: false
-        val lineBreak = rules.find { it.name == "lineBreak" }?.value as? Int ?: 0
-        val lineBreakPrintln = rules.find { it.name == "lineBreakPrintln" }?.value as? Int ?: 0
-        val conditionalIndentation = rules.find { it.name == "conditionalIndentation" }?.value as? Int ?: 0
+        val spaceBeforeColon = rules.find { it.name == "spaceBeforeColon" }?.value as? Boolean ?: true
+        val spaceAfterColon = rules.find { it.name == "spaceAfterColon" }?.value as? Boolean ?: true
+        val spaceAroundEquals = rules.find { it.name == "spaceAroundEquals" }?.value as? Boolean ?: true
+        val lineBreak = (rules.find { it.name == "lineBreak" }?.value as? Number)?.toInt() ?: 1
+        val lineBreakPrintln = (rules.find { it.name == "lineBreakPrintln" }?.value as? Number)?.toInt() ?: 1
+        val conditionalIndentation = (rules.find { it.name == "conditionalIndentation" }?.value as? Number)?.toInt() ?: 4
 
         val formatterRulesDto = FormatterRulesFileDTO(
             spaceBeforeColon,
@@ -198,31 +269,50 @@ class SnippetController(
 
         val updated = formaterRulesService.updateFormatterRules(formatterRulesDto, userId)
 
-        // Convert back to List<Rule> for response
-        val responseList = mutableListOf<Rule>()
-        responseList.add(Rule(id = "1", name = "spaceBeforeColon", isActive = updated.spaceBeforeColon, value = false))
-        responseList.add(Rule(id = "2", name = "spaceAfterColon", isActive = updated.spaceAfterColon, value = false))
-        responseList.add(Rule(id = "3", name = "spaceAroundEquals", isActive = updated.spaceAroundEquals, value = false))
-        responseList.add(Rule(id = "4", name = "lineBreak", isActive = updated.lineBreak != 0, value = updated.lineBreak))
-        responseList.add(Rule(id = "5", name = "lineBreakPrintln", isActive = updated.lineBreakPrintln != 0, value = updated.lineBreakPrintln))
-        responseList.add(Rule(id = "6", name = "conditionalIndentation", isActive = updated.conditionalIndentation != 0, value = updated.conditionalIndentation))
+        val responseList = listOf(
+            Rule(name = "spaceBeforeColon", value = updated.spaceBeforeColon),
+            Rule(name = "spaceAfterColon", value = updated.spaceAfterColon),
+            Rule(name = "spaceAroundEquals", value = updated.spaceAroundEquals),
+            Rule(name = "lineBreak", value = updated.lineBreak),
+            Rule(name = "lineBreakPrintln", value = updated.lineBreakPrintln),
+            Rule(name = "conditionalIndentation", value = updated.conditionalIndentation),
+        )
 
         logger.info("Formatter rules updated for userId: $userId")
         return ResponseEntity.ok(responseList)
     }
 
+    @Operation(
+        summary = "Actualizar reglas de linter",
+        description = "Actualiza las reglas de análisis estático para un usuario. Las reglas disponibles son: identifier_format (camelcase/snakecase), enablePrintOnly, enableInputOnly"
+    )
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Reglas actualizadas exitosamente",
+            content = [Content(mediaType = "application/json", schema = Schema(implementation = Rule::class))]),
+        ApiResponse(responseCode = "400", description = "Reglas inválidas o identifier_format debe ser 'camelcase' o 'snakecase'"),
+        ApiResponse(responseCode = "500", description = "Error al actualizar reglas")
+    ])
     @PostMapping("/rules/lint/{userId}")
     fun updateLinterRules(
+        @Parameter(description = "ID del usuario", required = true)
         @PathVariable userId: String,
+        @Parameter(description = "ID de correlación para trazabilidad")
         @RequestHeader(value = "Correlation-id", required = false) correlationId: UUID?,
+        @Parameter(description = "Lista de reglas a actualizar (name-value pairs)", required = true)
         @RequestBody rules: List<Rule>,
     ): ResponseEntity<List<Rule>> {
         val corr = correlationId ?: UUID.randomUUID()
-        logger.info("Received update linter rules request. UserId: $userId, CorrelationId: $corr")
+        logger.info("Received update linter rules request. UserId: $userId, CorrelationId: $corr, Rules: $rules")
 
-        val identifierFormat = rules.find { it.name == "identifierFormat" }?.value as? String ?: ""
-        val enablePrintOnly = rules.find { it.name == "enablePrintOnly" }?.isActive ?: false
-        val enableInputOnly = rules.find { it.name == "enableInputOnly" }?.isActive ?: false
+        val identifierFormat = rules.find { it.name == "identifier_format" }?.value as? String ?: "camelcase"
+        val enablePrintOnly = rules.find { it.name == "enablePrintOnly" }?.value as? Boolean ?: true
+        val enableInputOnly = rules.find { it.name == "enableInputOnly" }?.value as? Boolean ?: true
+
+        // Validar que identifier_format sea válido
+        if (identifierFormat != "camelcase" && identifierFormat != "snakecase") {
+            logger.warn("Invalid identifier_format value: $identifierFormat. Using 'camelcase' as default")
+            throw ValidationException("identifier_format must be either 'camelcase' or 'snakecase'")
+        }
 
         val linterRulesDto = LinterRulesFileDTO(
             userId,
@@ -233,18 +323,28 @@ class SnippetController(
 
         val updated = linterRulesService.updateLinterRules(linterRulesDto, userId)
 
-        // Convert back to List<Rule>
-        val responseList = mutableListOf<Rule>()
-        responseList.add(Rule(id = "1", name = "identifierFormat", isActive = updated.identifier_format != "", value = updated.identifier_format))
-        responseList.add(Rule(id = "2", name = "enablePrintOnly", isActive = updated.enablePrintOnly, value = false))
-        responseList.add(Rule(id = "3", name = "enableInputOnly", isActive = updated.enableInputOnly, value = false))
+        val responseList = listOf(
+            Rule(name = "identifier_format", value = updated.identifier_format),
+            Rule(name = "enablePrintOnly", value = updated.enablePrintOnly),
+            Rule(name = "enableInputOnly", value = updated.enableInputOnly),
+        )
 
         logger.info("Linter rules updated for userId: $userId")
         return ResponseEntity.ok(responseList)
     }
 
+    @Operation(
+        summary = "Ejecutar tests sobre snippet",
+        description = "Ejecuta tests sobre un snippet comparando la salida esperada con la salida real"
+    )
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Test ejecutado, retorna 'success' o 'failure'"),
+        ApiResponse(responseCode = "400", description = "Datos de test inválidos"),
+        ApiResponse(responseCode = "500", description = "Error durante la ejecución del test")
+    ])
     @PostMapping("/test")
     fun makeTest(
+        @Parameter(description = "Datos del test a ejecutar", required = true)
         @RequestBody testDto: TestDTO,
     ): ResponseEntity<String> {
         logger.info("Received test request")
@@ -255,25 +355,40 @@ class SnippetController(
         return ResponseEntity(result, HttpStatus.OK)
     }
 
-    // Endpoints PUT para recibir eventos desde el conector (redis stream)
+    @Operation(
+        summary = "Webhook para formateo de snippet desde Redis",
+        description = "Endpoint interno para recibir eventos de formateo desde Redis Stream"
+    )
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Evento procesado"),
+        ApiResponse(responseCode = "500", description = "Error procesando evento (se devuelve 200 para tolerancia)")
+    ])
     @PutMapping("/redis/format/snippet")
     fun redisFormatSnippet(
+        @Parameter(description = "Datos del snippet recibidos desde Redis", required = true)
         @RequestBody snippet: Snippet,
     ): ResponseEntity<Any> {
         logger.info("Received redis format snippet event: $snippet")
         return try {
-            // Procesar de forma tolerant: no lanzar si hay error en producción
             redisService.formatSnippet(snippet)
             ResponseEntity.ok(mapOf<String, String>())
         } catch (e: Exception) {
             logger.error("Error processing redis format snippet: ${e.message}", e)
-            // Devolver 200 con body vacío para ser tolerante, o 500 si se prefiere; aquí devolvemos 200 con {} según especificación
             ResponseEntity.ok(mapOf<String, String>())
         }
     }
 
+    @Operation(
+        summary = "Webhook para linting de snippet desde Redis",
+        description = "Endpoint interno para recibir eventos de linting desde Redis Stream"
+    )
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Evento procesado"),
+        ApiResponse(responseCode = "500", description = "Error procesando evento (se devuelve 200 para tolerancia)")
+    ])
     @PutMapping("/redis/lint/snippet")
     fun redisLintSnippet(
+        @Parameter(description = "Datos del snippet recibidos desde Redis", required = true)
         @RequestBody snippet: Snippet,
     ): ResponseEntity<Any> {
         logger.info("Received redis lint snippet event: $snippet")
@@ -286,8 +401,17 @@ class SnippetController(
         }
     }
 
+    @Operation(
+        summary = "Webhook para testing de snippet desde Redis",
+        description = "Endpoint interno para recibir eventos de testing desde Redis Stream"
+    )
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "Evento procesado"),
+        ApiResponse(responseCode = "500", description = "Error procesando evento (se devuelve 200 para tolerancia)")
+    ])
     @PutMapping("/redis/test/snippet")
     fun redisTestSnippet(
+        @Parameter(description = "Datos del snippet recibidos desde Redis", required = true)
         @RequestBody snippet: Snippet,
     ): ResponseEntity<Any> {
         logger.info("Received redis test snippet event: $snippet")
