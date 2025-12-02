@@ -130,7 +130,7 @@ class ModelDtoTest {
     }
     @Test
     fun `toString should return formatted string`() {
-        val rule = Rule("id","name",true,1) // Assuming Rule is a data class with a single property for simplicity
+        val rule = Rule("name", 1) // Rule is a data class with name and value properties
         val executionData = ExecutionDataDTO(
             correlationId = UUID.randomUUID(),
             snippetId = "snippet123",

@@ -14,7 +14,7 @@ class RedisDtoTest {
     @Test
     fun `test ChangeRulesDTO properties`() {
         val userId = "user123"
-        val rules = listOf(Rule("1", "Rule1", true, "value1"))
+        val rules = listOf(Rule("Rule1", "value1"))
         val snippets =
             listOf(
                 ExecutionDataDTO(
@@ -48,16 +48,12 @@ class RedisDtoTest {
 
     @Test
     fun `test Rule properties`() {
-        val id = "rule1"
         val name = "Sample Rule"
-        val isActive = true
         val value = "RuleValue"
 
-        val rule = Rule(id, name, isActive, value)
+        val rule = Rule(name, value)
 
-        assertEquals(id, rule.id)
         assertEquals(name, rule.name)
-        assertTrue(rule.isActive)
         assertEquals(value, rule.value)
     }
 
@@ -85,8 +81,8 @@ class RedisDtoTest {
 
     @Test
     fun `test different instances are not equal`() {
-        val rule1 = Rule("1", "Rule1", true, "value1")
-        val rule2 = Rule("2", "Rule2", false, "value2")
+        val rule1 = Rule("Rule1", "value1")
+        val rule2 = Rule("Rule2", "value2")
         assertNotEquals(rule1, rule2)
 
         val snippet1 = Snippet("user1", "id1", "content1", UUID.randomUUID())
