@@ -66,10 +66,12 @@ class PrintScriptService
                 return mapper
             }
 
-            // ObjectMapper para archivos de reglas (sin snake_case para el paquete printscript)
+            // ObjectMapper para archivos de reglas del paquete printscript
+            // Usa camelCase por defecto, pero mantiene identifier_format tal como está (con guión bajo)
             fun rulesObjectMapper(): ObjectMapper {
                 val mapper = ObjectMapper()
-                // NO usar snake_case - mantener camelCase para compatibilidad con RulesReader
+                // NO usar ninguna estrategia de naming - las propiedades se serializarán tal como están definidas
+                // Esto significa: camelCase para todo EXCEPTO identifier_format que ya tiene guión bajo
                 // Aceptar propiedades independientemente de mayúsculas/minúsculas
                 mapper.configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
                 // Ignorar campos desconocidos para ser tolerante con cambios en JSON
