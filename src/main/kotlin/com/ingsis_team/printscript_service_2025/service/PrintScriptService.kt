@@ -78,6 +78,11 @@ class PrintScriptService
                 mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 return mapper
             }
+
+            // Sanitize userId for use in filenames by replacing invalid characters
+            fun sanitizeUserId(userId: String): String {
+                return userId.replace(Regex("[^a-zA-Z0-9._-]"), "_")
+            }
         }
 
         val assetServiceApi = WebClient.builder().baseUrl("http://$assetUrl/v1/asset").build()
