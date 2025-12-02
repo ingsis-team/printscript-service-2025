@@ -1,3 +1,9 @@
 package com.ingsis_team.printscript_service_2025.redis.dto
 
-data class Rule(val id: String, val name: String, val isActive: Boolean, val value: Any)
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class Rule(
+    val name: String,
+    val value: Any,
+)

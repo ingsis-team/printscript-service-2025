@@ -1,8 +1,8 @@
-name: CD Pipeline
+name: CD Pipeline Dev
 
 on:
   push:
-    branches: [ main, dev ]
+    branches: [ dev ]
 
 permissions:
   contents: read
@@ -57,3 +57,17 @@ jobs:
           build-args: |  
             GITHUB_USERNAME=${{ github.actor }}
             GITHUB_TOKEN=${{ github.token }}
+
+      - name: refresh container
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd infra-microservices-2025
+            # Actualizar imagen y reiniciar servicio
+            docker compose pull printscript-service
+            docker compose up -d --force-recreate printscript-service
+            # Reiniciar proxy para aplicar cambios
+            docker compose restart proxy

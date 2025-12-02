@@ -29,24 +29,38 @@ class RedisController
     ) {
         private val logger = LoggerFactory.getLogger(RedisController::class.java)
 
+        // Helper functions para extraer valores de forma segura
+        private fun getBooleanValue(rules: List<com.ingsis_team.printscript_service_2025.redis.dto.Rule>, name: String, default: Boolean): Boolean {
+            val value: Any? = rules.find { it.name == name }?.value
+            return if (value is Boolean) value else default
+        }
+
+        private fun getIntValue(rules: List<com.ingsis_team.printscript_service_2025.redis.dto.Rule>, name: String, default: Int): Int {
+            val value: Any? = rules.find { it.name == name }?.value
+            return if (value is Number) value.toInt() else default
+        }
+
+        private fun getStringValue(rules: List<com.ingsis_team.printscript_service_2025.redis.dto.Rule>, name: String, default: String): String {
+            val value: Any? = rules.find { it.name == name }?.value
+            return if (value is String) value else default
+        }
+
         @PutMapping("/format")
         suspend fun changeAndFormatRules(
             @RequestBody data: ChangeRulesDTO,
         ) {
             logger.info("Received change and format rules request for userId: ${data.userId}")
-            logger.debug("Rules details: ${data.rules}")
             logger.info("Received data: $data")
 
-            val spaceBeforeColon = data.rules.find { it.name == "spaceBeforeColon" }?.isActive ?: false
-            val spaceAfterColon = data.rules.find { it.name == "spaceAfterColon" }?.isActive ?: false
-            val spaceAroundEquals = data.rules.find { it.name == "spaceAroundEquals" }?.isActive ?: false
-            val lineBreak = data.rules.find { it.name == "lineBreak" }?.value as? Int ?: 0
-            val lineBreakPrintln = data.rules.find { it.name == "lineBreakPrintln" }?.value as? Int ?: 0
-            val conditionalIndentation = data.rules.find { it.name == "conditionalIndentation" }?.value as? Int ?: 0
+            val spaceBeforeColon = getBooleanValue(data.rules, "spaceBeforeColon", false)
+            val spaceAfterColon = getBooleanValue(data.rules, "spaceAfterColon", false)
+            val spaceAroundEquals = getBooleanValue(data.rules, "spaceAroundEquals", false)
+            val lineBreak = getIntValue(data.rules, "lineBreak", 0)
+            val lineBreakPrintln = getIntValue(data.rules, "lineBreakPrintln", 0)
+            val conditionalIndentation = getIntValue(data.rules, "conditionalIndentation", 0)
 
             val formatterDto =
                 FormatterRulesFileDTO(
-                    data.userId,
                     spaceBeforeColon,
                     spaceAfterColon,
                     spaceAroundEquals,
@@ -55,7 +69,7 @@ class RedisController
                     conditionalIndentation,
                 )
             logger.info(
-                "formatterDto: userId=${formatterDto.userId}, spaceBeforeColon=${formatterDto.spaceBeforeColon}," +
+                "formatterDto: userId=${data.userId}, spaceBeforeColon=${formatterDto.spaceBeforeColon}," +
                     " spaceAfterColon=${formatterDto.spaceAfterColon}, " +
                     "spaceAroundEquals=${formatterDto.spaceAroundEquals}, lineBreak=${formatterDto.lineBreak}," +
                     " lineBreakPrintln=${formatterDto.lineBreakPrintln}," +
@@ -76,12 +90,11 @@ class RedisController
             @RequestBody data: ChangeRulesDTO,
         ) {
             logger.info("Received change and lint rules request for userId: ${data.userId}")
-            logger.debug("Rules details: ${data.rules}")
             logger.info("Received data2: $data")
 
-            val identifierFormat = data.rules.find { it.name == "identifierFormat" }?.value as? String ?: ""
-            val enablePrintOnly = data.rules.find { it.name == "enablePrintOnly" }?.isActive ?: false
-            val enableInputOnly = data.rules.find { it.name == "enableInputOnly" }?.isActive ?: false
+            val identifierFormat = getStringValue(data.rules, "identifier_format", "camelcase")
+            val enablePrintOnly = getBooleanValue(data.rules, "enablePrintOnly", false)
+            val enableInputOnly = getBooleanValue(data.rules, "enableInputOnly", false)
 
             val linterDto =
                 LinterRulesFileDTO(
@@ -107,7 +120,7 @@ class RedisController
             logger.info("Rules published2")
         }
 
-        @PutMapping("/format/snippet")
+        @PutMapping("/publish/format/snippet")
         suspend fun formatSnippet(
             @RequestBody snippet: Snippet,
         ) {
@@ -116,7 +129,7 @@ class RedisController
             logger.info("Format event published for snippet: ${snippet.id}")
         }
 
-        @PutMapping("/lint/snippet")
+        @PutMapping("/publish/lint/snippet")
         suspend fun lintSnippet(
             @RequestBody snippet: Snippet,
         ) {
@@ -125,7 +138,7 @@ class RedisController
             logger.info("Lint event published for snippet: ${snippet.id}")
         }
 
-        @PutMapping("/test/snippet")
+        @PutMapping("/publish/test/snippet")
         suspend fun testSnippet(
             @RequestBody snippet: Snippet,
         ) {

@@ -20,7 +20,7 @@ class FormatterRulesService(
         correlationId: UUID,
     ): FormatterRules {
         logger.info("Getting formatter rules for userId: $userId, correlationId: $correlationId")
-        val rules = findOrCreateByUser(userId)
+        val rules = findOrCreateRulesForUser(userId)
         logger.debug("Formatter rules retrieved for userId: $userId")
         return rules
     }
@@ -31,8 +31,9 @@ class FormatterRulesService(
     ): FormatterRulesFileDTO {
         try {
             logger.info("Updating formatter rules for userId: $userId")
-            val rules = findOrCreateByUser(userId)
-            logger.debug("Current formatter rules: spaceBeforeColon=${rules.spaceBeforeColon}, spaceAfterColon=${rules.spaceAfterColon}")
+            val rules = findOrCreateRulesForUser(userId)
+            logger.debug("Current formatter rules: ${rules.toString()}")
+
             rules.spaceBeforeColon = formatterRules.spaceBeforeColon
             rules.spaceAfterColon = formatterRules.spaceAfterColon
             rules.spaceAroundEquals = formatterRules.spaceAroundEquals
@@ -42,8 +43,8 @@ class FormatterRulesService(
 
             formatterRulesRepository.save(rules)
             logger.info("Formatter rules updated successfully for userId: $userId")
+
             return FormatterRulesFileDTO(
-                userId,
                 rules.spaceBeforeColon,
                 rules.spaceAfterColon,
                 rules.spaceAroundEquals,
@@ -57,12 +58,12 @@ class FormatterRulesService(
         }
     }
 
-    private fun findOrCreateByUser(userId: String): FormatterRules {
+    private fun findOrCreateRulesForUser(userId: String): FormatterRules {
         try {
             val rules = formatterRulesRepository.findByUserId(userId).orElse(null)
             if (rules == null) {
                 logger.info("Formatter rules not found for userId: $userId, creating default rules")
-                return createUserById(userId)
+                return createRulesForUser(userId)
             }
             logger.debug("Found existing formatter rules for userId: $userId")
             return rules
@@ -72,7 +73,7 @@ class FormatterRulesService(
         }
     }
 
-    private fun createUserById(userId: String): FormatterRules {
+    private fun createRulesForUser(userId: String): FormatterRules {
         try {
             logger.info("Creating default formatter rules for userId: $userId")
             val format =
@@ -81,7 +82,7 @@ class FormatterRulesService(
                     spaceBeforeColon = false,
                     spaceAfterColon = false,
                     spaceAroundEquals = false,
-                    lineBreak = 0,
+                    lineBreak = 1,
                     lineBreakPrintln = 0,
                     conditionalIndentation = 0,
                 )

@@ -1,6 +1,8 @@
 package com.ingsis_team.printscript_service_2025.service
 
 import ast.ASTNode
+import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.MapperFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.PropertyNamingStrategies
 import formatOperations.AssignationFormatter
@@ -55,7 +57,25 @@ class PrintScriptService
         companion object {
             fun objectMapper(): ObjectMapper {
                 val mapper = ObjectMapper()
-                mapper.propertyNamingStrategy = PropertyNamingStrategies.UPPER_CAMEL_CASE
+                // Serializar por defecto en snake_case para compatibilidad con front/cliente
+                mapper.propertyNamingStrategy = PropertyNamingStrategies.SNAKE_CASE
+                // Aceptar propiedades independientemente de mayúsculas/minúsculas
+                mapper.configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
+                // Ignorar campos desconocidos para ser tolerante con cambios en JSON
+                mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                return mapper
+            }
+
+            // ObjectMapper para archivos de reglas del paquete printscript
+            // Usa camelCase por defecto, pero mantiene identifier_format tal como está (con guión bajo)
+            fun rulesObjectMapper(): ObjectMapper {
+                val mapper = ObjectMapper()
+                // NO usar ninguna estrategia de naming - las propiedades se serializarán tal como están definidas
+                // Esto significa: camelCase para todo EXCEPTO identifier_format que ya tiene guión bajo
+                // Aceptar propiedades independientemente de mayúsculas/minúsculas
+                mapper.configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
+                // Ignorar campos desconocidos para ser tolerante con cambios en JSON
+                mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 return mapper
             }
         }
@@ -116,8 +136,11 @@ class PrintScriptService
         ): ValidationResult {
             try {
                 logger.info("Validating code with version: $version")
+                logger.debug("Input content: '$input'")
                 val lexer = Lexer(tokenMapper)
                 val tokens = lexer.execute(input)
+                val tokenTypes = tokens.take(10).map { token -> token.getType().name }
+                logger.debug("Generated ${tokens.size} tokens: $tokenTypes")
                 val script = parser.execute(tokens)
                 val linterVersion =
                     LinterVersion.fromString(version)
@@ -194,7 +217,11 @@ class PrintScriptService
                     )
 
                 val rulesFile = File(defaultPath)
-                objectMapper().writeValue(rulesFile, linterDto)
+                // Usar rulesObjectMapper() que mantiene las propiedades correctas
+                rulesObjectMapper().writeValue(rulesFile, linterDto)
+
+                // Log para debug: mostrar contenido del archivo
+                logger.debug("Linter rules file created at: $defaultPath with content: ${rulesFile.readText()}")
 
                 val code = input.bufferedReader().use { it.readText() }
 
@@ -268,7 +295,11 @@ class PrintScriptService
 
                 // Escribir las reglas en un archivo JSON temporal
                 val rulesFile = File(defaultPath)
-                ObjectMapper().writeValue(rulesFile, formatterDto)
+                // Usar rulesObjectMapper() que mantiene camelCase para compatibilidad con RulesReader
+                rulesObjectMapper().writeValue(rulesFile, formatterDto)
+
+                // Log para debug: mostrar contenido del archivo
+                logger.debug("Formatter rules file created at: $defaultPath with content: ${rulesFile.readText()}")
 
                 // Configurar las reglas, lexer, parser y operaciones
                 val rulesReader =
@@ -324,79 +355,20 @@ class PrintScriptService
                 // Execute the formatter and get the formatted code
                 val formattedCode = formatter.format(code)
 
-                // Update the formatted content in the bucket (optional - does not fail if service is not available)
-                try {
-                    updateOnBucket(snippetId, formattedCode)
-                } catch (e: Exception) {
-                    // Log the error but don't fail the formatting
-                    logger.warn("Could not update bucket, but formatting was successful: ${e.message}")
-                }
-
                 // Return the formatted result
                 return Output(formattedCode)
             } catch (e: ValidationException) {
-                throw e
-            } catch (e: ExternalServiceException) {
                 throw e
             } catch (e: Exception) {
                 logger.error("Error during formatting: ${e.message}", e)
                 throw FormattingException("Failed to format code: ${e.message}", e)
             } finally {
-                // Clean up the temporary file
+                // Delete the rules file
                 val rulesFile = File(defaultPath)
                 if (rulesFile.exists()) {
                     rulesFile.delete()
                     logger.debug("Temporary formatter rules file deleted: $defaultPath")
                 }
-            }
-        }
-
-        fun sanitizeUserId(userId: String): String {
-            return userId.replace(Regex("[^a-zA-Z0-9.-]"), "_")
-        }
-
-        fun updateOnBucket(
-            key: String,
-            content: String,
-        ) {
-            logger.info("Updating bucket for snippetId: $key")
-            try {
-                // Delete the existing content in the bucket
-                val deleteResponseStatus =
-                    assetServiceApi
-                        .delete()
-                        .uri("/snippets/{key}", key)
-                        .exchangeToMono { clientResponse -> Mono.just(clientResponse.statusCode()) }
-                        .block()
-
-                // Validate if deletion was successful
-                // Allow 404 (NOT_FOUND) since the snippet may not exist yet
-                if (deleteResponseStatus != HttpStatus.NO_CONTENT && deleteResponseStatus != HttpStatus.NOT_FOUND) {
-                    logger.error("Failed to delete snippet from bucket. Status: $deleteResponseStatus")
-                    throw RuntimeException("Error al eliminar el snippet: Código de respuesta $deleteResponseStatus")
-                }
-                logger.debug("Snippet deleted from bucket (or did not exist). Status: $deleteResponseStatus")
-
-                // Upload the new content to the bucket
-                val postResponseStatus =
-                    assetServiceApi
-                        .post()
-                        .uri("/snippets/{key}", key)
-                        .bodyValue(content)
-                        .exchangeToMono { clientResponse -> Mono.just(clientResponse.statusCode()) }
-                        .block()
-
-                // Validate if upload was successful
-                // Allow 404 (NOT_FOUND) if the asset service is not available
-                // Formatting can work without updating the bucket
-                if (postResponseStatus != HttpStatus.CREATED && postResponseStatus != HttpStatus.NOT_FOUND) {
-                    logger.error("Failed to upload snippet to bucket. Status: $postResponseStatus")
-                    throw RuntimeException("Error al subir el snippet: Código de respuesta $postResponseStatus")
-                }
-                logger.info("Snippet successfully uploaded to bucket. Status: $postResponseStatus")
-            } catch (e: Exception) {
-                logger.error("Error updating bucket for snippetId $key: ${e.message}", e)
-                throw ExternalServiceException("Error communicating with asset service: ${e.message}", e)
             }
         }
     }

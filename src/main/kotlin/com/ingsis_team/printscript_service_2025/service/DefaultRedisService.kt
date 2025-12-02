@@ -28,13 +28,7 @@ class DefaultRedisService
                 )
 
             // Crea un nuevo objeto Snippet con el contenido formateado
-            val outputSnippet =
-                Snippet(
-                    snippet.id,
-                    formattedOutput.string,
-                    snippet.userId,
-                    snippet.correlationID,
-                )
+            val outputSnippet = Snippet(snippet.userId, snippet.id, formattedOutput.string, snippet.correlationID)
 
             // Actualiza el bucket con el contenido formateado
             return outputSnippet
@@ -58,7 +52,7 @@ class DefaultRedisService
                 }
 
             // Crea un nuevo Snippet con las reglas rotas
-            val outputSnippet = Snippet(snippet.id, brokenRules, snippet.userId, snippet.correlationID)
+            val outputSnippet = Snippet(snippet.userId, snippet.id, brokenRules, snippet.correlationID)
             return outputSnippet
         }
 
@@ -72,14 +66,14 @@ class DefaultRedisService
                 
                 // If execution was successful, return success
                 val testResult = "success - Snippet executed without errors"
-                val outputSnippet = Snippet(snippet.id, testResult, snippet.userId, snippet.correlationID)
+                val outputSnippet = Snippet(snippet.userId, snippet.id, testResult, snippet.correlationID)
                 logger.info("Test passed for snippet ${snippet.id}")
                 return outputSnippet
             } catch (e: Exception) {
                 // If there's an error, return failure
                 val testResult = "failure - Error: ${e.message}"
                 logger.error("Test failed for snippet ${snippet.id}: ${e.message}")
-                val outputSnippet = Snippet(snippet.id, testResult, snippet.userId, snippet.correlationID)
+                val outputSnippet = Snippet(snippet.userId, snippet.id, testResult, snippet.correlationID)
                 return outputSnippet
             }
         }
