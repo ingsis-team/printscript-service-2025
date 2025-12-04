@@ -1,0 +1,80 @@
+package com.ingsisteam.printscriptservice2025.service
+
+import com.ingsisteam.printscriptservice2025.interfaces.IRedisService
+import com.ingsisteam.printscriptservice2025.redis.dto.Snippet
+import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.stereotype.Service
+import java.io.ByteArrayInputStream
+
+@Service("defaultRedisService")
+class DefaultRedisService
+@Autowired
+constructor(
+    private val snippetService: PrintScriptService,
+) : IRedisService {
+    private val logger = LoggerFactory.getLogger(DefaultRedisService::class.java)
+
+    override fun formatSnippet(snippet: Snippet): Snippet {
+        logger.info("Los datos del snippet son: $snippet")
+
+        val formattedOutput =
+            snippetService.format(
+                snippet.id,
+                ByteArrayInputStream(snippet.content.toByteArray()),
+                "1.1",
+                snippet.userId,
+                snippet.correlationID,
+            )
+
+        // Crea un nuevo objeto Snippet con el contenido formateado
+        val outputSnippet = Snippet(snippet.userId, snippet.id, formattedOutput.string, snippet.correlationID)
+
+        // Actualiza el bucket con el contenido formateado
+        return outputSnippet
+    }
+
+    override fun lintSnippet(snippet: Snippet): Snippet {
+        logger.info("Estoy linteando un snippet")
+
+        val lintResults =
+            snippetService.lint(
+                ByteArrayInputStream(snippet.content.toByteArray()),
+                "1.1",
+                snippet.userId,
+                snippet.correlationID,
+            )
+
+        // Extrae las reglas rotas como texto
+        val brokenRules =
+            lintResults.joinToString("\n") { scaOutput ->
+                "Rule: ${scaOutput.ruleBroken}, Line: ${scaOutput.lineNumber}, Description: ${scaOutput.description}"
+            }
+
+        // Crea un nuevo Snippet con las reglas rotas
+        val outputSnippet = Snippet(snippet.userId, snippet.id, brokenRules, snippet.correlationID)
+        return outputSnippet
+    }
+
+    override fun testSnippet(snippet: Snippet): Snippet {
+        logger.info("Estoy testeando un snippet")
+
+        try {
+            // Execute the snippet to verify it has no syntax errors
+            val inputStream = ByteArrayInputStream(snippet.content.toByteArray())
+            snippetService.runScript(inputStream, "1.1")
+
+            // If execution was successful, return success
+            val testResult = "success - Snippet executed without errors"
+            val outputSnippet = Snippet(snippet.userId, snippet.id, testResult, snippet.correlationID)
+            logger.info("Test passed for snippet ${snippet.id}")
+            return outputSnippet
+        } catch (e: Exception) {
+            // If there's an error, return failure
+            val testResult = "failure - Error: ${e.message}"
+            logger.error("Test failed for snippet ${snippet.id}: ${e.message}")
+            val outputSnippet = Snippet(snippet.userId, snippet.id, testResult, snippet.correlationID)
+            return outputSnippet
+        }
+    }
+}
