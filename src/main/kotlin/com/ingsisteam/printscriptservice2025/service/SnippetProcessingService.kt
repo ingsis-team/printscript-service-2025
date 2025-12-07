@@ -12,10 +12,12 @@ class SnippetProcessingService(private val applicationContext: ApplicationContex
 
     fun selectService(language: String): LanguageService {
         logger.debug("Selecting service for language: $language")
-        return when (language) {
+        val normalizedLanguage = language.lowercase() // Normalize to lowercase for comparison
+        logger.debug("Normalized language: $normalizedLanguage")
+        return when (normalizedLanguage) {
             "printscript" -> applicationContext.getBean(PrintScriptService::class.java)
             else -> {
-                logger.error("Unsupported language requested: $language")
+                logger.error("Unsupported language requested: $language (normalized: $normalizedLanguage)")
                 throw UnsupportedLanguageException("Unsupported language: $language. Only 'printscript' is supported.")
             }
         }

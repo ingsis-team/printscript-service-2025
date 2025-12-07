@@ -209,46 +209,85 @@ constructor(
         userId: String,
         correlationId: UUID,
     ): MutableList<SCAOutput> {
-        logger.info("Starting linting for userId: $userId, correlationId: $correlationId")
+        logger.info("=== STARTING LINTING PROCESS ===")
+        logger.info("Parameters - userId: $userId, correlationId: $correlationId, version: $version")
         val sanitizedUserId = sanitizeUserId(userId)
         val defaultPath = "./$sanitizedUserId-linterRules.json"
+        logger.info("Sanitized userId: $sanitizedUserId, Rules file path: $defaultPath")
 
         try {
+            logger.info("Step 1: Fetching linter rules from database for userId: $userId")
             val lintRules = linterRulesService.getLinterRulesByUserId(userId, correlationId)
-            logger.debug("Loaded linter rules for user: $userId")
+            logger.info("Step 1 COMPLETE: Retrieved rules from DB - identifierFormat: '${lintRules.identifierFormat}', enablePrintOnly: ${lintRules.enablePrintOnly}, enableInputOnly: ${lintRules.enableInputOnly}")
+            
             val linterDto =
                 LinterFileDTO(
                     lintRules.identifierFormat,
                     lintRules.enablePrintOnly,
                     lintRules.enableInputOnly,
                 )
+            logger.info("Step 2: Created LinterFileDTO - identifier_format: '${linterDto.identifier_format}', enablePrintOnly: ${linterDto.enablePrintOnly}, enableInputOnly: ${linterDto.enableInputOnly}")
 
             val rulesFile = File(defaultPath)
+            logger.info("Step 3: Writing rules to file: $defaultPath")
             // Usar rulesObjectMapper() que mantiene las propiedades correctas
             rulesObjectMapper().writeValue(rulesFile, linterDto)
+            logger.info("Step 3 COMPLETE: Rules file written successfully")
 
             // Log para debug: mostrar contenido del archivo
-            logger.debug("Linter rules file created at: $defaultPath with content: ${rulesFile.readText()}")
+            val rulesFileContent = rulesFile.readText()
+            logger.info("Step 4: Rules file content (JSON): $rulesFileContent")
+            logger.info("Step 4: Rules file exists: ${rulesFile.exists()}, Size: ${rulesFile.length()} bytes")
 
+            logger.info("Step 5: Reading code from input stream")
             val code = input.bufferedReader().use { it.readText() }
+            logger.info("Step 5 COMPLETE: Code read successfully, length: ${code.length} characters")
+            logger.debug("Step 5: Code preview (first 200 chars): ${code.take(200)}")
 
+            logger.info("Step 6: Tokenizing code with version: $version")
             val tokenMapper = TokenMapper(version)
             val lexer = Lexer(tokenMapper)
             val tokens: List<Token> = lexer.execute(code)
+            logger.info("Step 6 COMPLETE: Generated ${tokens.size} tokens")
 
+            logger.info("Step 7: Parsing tokens into AST")
             val parser = Parser()
             val trees: List<ASTNode> = parser.execute(tokens)
+            logger.info("Step 7 COMPLETE: Generated ${trees.size} AST nodes")
 
             // Instantiate the linter and apply the rules
+            logger.info("Step 8: Creating linter instance with version: $version")
             val linterVersion =
                 LinterVersion.fromString(version)
                     ?: throw ValidationException("Unsupported linter version: $version")
             val linter = Linter(linterVersion)
+            logger.info("Step 8 COMPLETE: Linter instance created")
+            
+            logger.info("Step 9: Loading rules into linter from JSON content")
+            logger.info("Step 9: About to call linter.readJson() with content length: ${rulesFileContent.length}")
+            linter.readJson(rulesFileContent)
+            logger.info("Step 9 COMPLETE: Rules loaded into linter")
+            
+            val loadedRules = linter.getRules()
+            logger.info("Step 9: Linter now has ${loadedRules.size} rules loaded")
+            loadedRules.forEachIndexed { index, rule ->
+                logger.info("Step 9: Rule $index - name: '${rule.getRuleName()}', description: '${rule.getRuleDescription()}'")
+            }
+            
+            logger.info("Step 10: Running linter.check() on ${trees.size} AST nodes")
+            logger.info("Step 10: Rules being applied - identifier_format: '${linterDto.identifier_format}', enablePrintOnly: ${linterDto.enablePrintOnly}, enableInputOnly: ${linterDto.enableInputOnly}")
             val results = linter.check(trees)
+            logger.info("Step 10 COMPLETE: Linter check completed")
 
             // Convertir los BrokenRules a SCAOutput
+            val brokenRules = results.getBrokenRules()
+            logger.info("Step 11: Converting ${brokenRules.size} broken rules to SCAOutput")
+            brokenRules.forEachIndexed { index, brokenRule ->
+                logger.info("Step 11: Broken rule $index - rule: '${brokenRule.ruleDescription}', line: ${brokenRule.errorPosition.row}, column: ${brokenRule.errorPosition.column}")
+            }
+            
             val scaOutputs: MutableList<SCAOutput> =
-                results.getBrokenRules().map { brokenRule ->
+                brokenRules.map { brokenRule ->
                     SCAOutput(
                         lineNumber = brokenRule.errorPosition.row,
                         ruleBroken = brokenRule.ruleDescription,
@@ -256,7 +295,11 @@ constructor(
                     )
                 }.toMutableList()
 
-            logger.info("Linting completed. Found ${scaOutputs.size} issues")
+            logger.info("=== LINTING PROCESS COMPLETE ===")
+            logger.info("Total issues found: ${scaOutputs.size}")
+            scaOutputs.forEachIndexed { index, output ->
+                logger.info("Issue $index: rule='${output.ruleBroken}', line=${output.lineNumber}, description='${output.description}'")
+            }
             return scaOutputs
         } catch (e: ValidationException) {
             throw e

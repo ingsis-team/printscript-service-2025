@@ -19,9 +19,15 @@ class LinterRulesService(
         userId: String,
         correlationId: UUID,
     ): LinterRules {
-        logger.info("Getting linter rules for userId: $userId, correlationId: $correlationId")
+        logger.info("=== LinterRulesService.getLinterRulesByUserId ===")
+        logger.info("Parameters - userId: $userId, correlationId: $correlationId")
         val rules = findOrCreateByUser(userId)
-        logger.debug("Linter rules retrieved for userId: $userId")
+        logger.info("Retrieved rules from database:")
+        logger.info("  - userId: ${rules.userId}")
+        logger.info("  - identifierFormat: '${rules.identifierFormat}'")
+        logger.info("  - enablePrintOnly: ${rules.enablePrintOnly}")
+        logger.info("  - enableInputOnly: ${rules.enableInputOnly}")
+        logger.info("=== End getLinterRulesByUserId ===")
         return rules
     }
 
@@ -58,12 +64,14 @@ class LinterRulesService(
 
     private fun findOrCreateByUser(userId: String): LinterRules {
         try {
+            logger.info("Searching for existing linter rules for userId: $userId")
             val rules = linterRulesRepository.findByUserId(userId).orElse(null)
             if (rules == null) {
-                logger.info("Linter rules not found for userId: $userId, creating default rules")
+                logger.info("No existing rules found for userId: $userId, creating default rules")
                 return createUserById(userId)
             }
-            logger.debug("Found existing linter rules for userId: $userId")
+            logger.info("Found existing linter rules for userId: $userId")
+            logger.info("Existing rules - identifierFormat: '${rules.identifierFormat}', enablePrintOnly: ${rules.enablePrintOnly}, enableInputOnly: ${rules.enableInputOnly}")
             return rules
         } catch (e: Exception) {
             logger.error("Error finding linter rules for userId: $userId", e)
