@@ -10,10 +10,8 @@ plugins {
 
     // --- Publishing (for pushing to repositories) ---
     id 'maven-publish'
-
-    // --- Optional tools (currently disabled) ---
-    // id 'org.jlleitschuh.gradle.ktlint' version '12.1.1' // Kotlin linter (code style checks)
-    // id 'org.jetbrains.kotlinx.kover' version '0.9.0-RC' // Code coverage reporting
+	id 'org.jlleitschuh.gradle.ktlint' version '12.1.0'
+	id 'jacoco'
 }
 
 group = 'com.example'
@@ -85,9 +83,175 @@ dependencies {
     // --- Testing ---
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.jetbrains.kotlin:kotlin-test-junit5'
+    testImplementation 'org.mockito.kotlin:mockito-kotlin:5.2.1'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // New Relic
+    implementation 'com.newrelic.agent.java:newrelic-api:8.15.0'
 }
 
 tasks.named('test') {
+
     useJUnitPlatform()
+
+	finalizedBy('jacocoTestReport') // Ensure JaCoCo report is generated after tests
+
+}
+
+
+
+ktlint {
+	disabledRules.set(["standard:package-name"])
+	filter {
+		exclude("**/generated/**")
+	}
+	version = "0.50.0"
+	reporters {
+		reporter "checkstyle"
+		reporter "json"
+	}
+}
+
+
+
+jacoco {
+
+    toolVersion = "0.8.11"
+
+}
+
+
+
+tasks.jacocoTestReport {
+
+    dependsOn(tasks.test)
+
+    reports {
+
+        xml.required.set(true)
+
+        csv.required.set(false)
+
+        html.required.set(true)
+
+    }
+
+	classDirectories.setFrom(
+
+		files(
+
+			fileTree(
+
+				dir: "${buildDir}/classes/kotlin/main",
+
+				excludes: [
+
+					'**/*Application*',
+
+					'**/*DTO*',
+
+					'**/*Test*',
+
+					'**/*Config*',
+
+					'**/*Connector*',
+
+					'**/*Controller*',
+
+					'**/*Exception*',
+
+					'**/*Repository*',
+
+					'**/*Security*',
+
+					'**/*Enum*',
+
+					'**/*Model*',
+
+					'**/*Entity*'
+
+				]
+
+			)
+
+		)
+
+	)
+
+}
+
+
+
+tasks.jacocoTestCoverageVerification {
+
+    dependsOn(tasks.jacocoTestReport)
+
+    violationRules {
+
+        rule {
+
+            limit {
+
+                minimum = "0.80".toBigDecimal()
+
+            }
+
+        }
+
+    }
+
+	classDirectories.setFrom(
+
+		files(
+
+			fileTree(
+
+				dir: "${buildDir}/classes/kotlin/main",
+
+				excludes: [
+
+					'**/*Application*',
+
+					'**/*DTO*',
+
+					'**/*Test*',
+
+					'**/*Config*',
+
+					'**/*Connector*',
+
+					'**/*Controller*',
+
+					'**/*Exception*',
+
+					'**/*Repository*',
+
+					'**/*Security*',
+
+					'**/*Service*',
+
+					'**/*Util*',
+
+					'**/*Enum*',
+
+					'**/*Model*',
+
+					'**/*Entity*'
+
+				]
+
+			)
+
+		)
+
+	)
+
+}
+
+
+
+tasks.check {
+
+    dependsOn(tasks.jacocoTestCoverageVerification)
+
 }

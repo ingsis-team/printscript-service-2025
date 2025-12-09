@@ -22,8 +22,11 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
+      - name: Run ktlint check
+        run: ./gradlew ktlintCheck
+
       - name: Build with Gradle
         env:
           GITHUB_USERNAME: ${{ secrets.USERNAME }}
           GITHUB_TOKEN: ${{ secrets.TOKEN }}
-        run: ./gradlew build
+        run: ./gradlew check
